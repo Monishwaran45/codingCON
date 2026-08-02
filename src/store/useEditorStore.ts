@@ -16,8 +16,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   code: LANGUAGE_STARTERS['javascript'],
   lastSavedAt: null,
   setLanguage: (lang: string) => {
-    const starter = LANGUAGE_STARTERS[lang] || '// Write solution here';
-    set({ language: lang, code: starter });
+    const currentLang = get().language;
+    const currentCode = get().code;
+    const oldStarter = LANGUAGE_STARTERS[currentLang];
+    const newStarter = LANGUAGE_STARTERS[lang] || '';
+
+    if (!currentCode || currentCode === oldStarter) {
+      set({ language: lang, code: newStarter });
+    } else {
+      set({ language: lang });
+    }
   },
   setCode: (code: string) => {
     set({ code });

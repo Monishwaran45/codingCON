@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { socketService } from '@/lib/socket';
+import { socketService, SubmissionProgressEvent } from '@/lib/socket';
 import { LeaderboardEntry } from '@/types';
 
 export function useSubmissionSocket(
   submissionId: string | null,
-  onProgress: (data: any) => void
+  onProgress: (data: SubmissionProgressEvent) => void
 ) {
   useEffect(() => {
     if (!submissionId) return;
@@ -17,8 +17,7 @@ export function useSubmissionSocket(
     socketService.subscribeToSubmission(submissionId, onProgress);
 
     return () => {
-      // Cleanup listener on unmount or submission complete
-      socket.off(`submission:${submissionId}:progress`, onProgress);
+      socketService.unsubscribeFromSubmission(submissionId, onProgress);
     };
   }, [submissionId, onProgress]);
 }
@@ -38,7 +37,7 @@ export function useLeaderboardSocket(
     socketService.subscribeToLeaderboard(contestId, onLeaderboardUpdate);
 
     return () => {
-      socket.off(`contest:${contestId}:leaderboard:update`, onLeaderboardUpdate);
+      socketService.unsubscribeFromLeaderboard(contestId, onLeaderboardUpdate);
     };
   }, [contestId, onLeaderboardUpdate]);
 }

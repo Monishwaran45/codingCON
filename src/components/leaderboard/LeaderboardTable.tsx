@@ -65,7 +65,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
           className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-950 px-3.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-white focus:outline-none"
         />
         <div className="text-xs text-zinc-400">
-          Showing <strong className="text-white">{filteredEntries.length}</strong> / 500+ competitors (60fps virtualized)
+          Showing <strong className="text-white">{filteredEntries.length}</strong> / {entries.length} competitors (60fps virtualized)
         </div>
       </div>
 

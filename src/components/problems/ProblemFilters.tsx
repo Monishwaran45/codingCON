@@ -61,7 +61,7 @@ export const ProblemFilters: React.FC<ProblemFiltersProps> = ({
         {/* Status Filter */}
         <select
           value={selectedStatus}
-          onChange={(e) => onStatusChange(e.target.value as any)}
+          onChange={(e) => onStatusChange(e.target.value as 'all' | 'solved' | 'unsolved')}
           className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none"
         >
           <option value="all">All Status</option>
@@ -72,7 +72,7 @@ export const ProblemFilters: React.FC<ProblemFiltersProps> = ({
         {/* Sort selector — Default = Recently Attempted */}
         <select
           value={sortBy}
-          onChange={(e) => onSortChange(e.target.value as any)}
+          onChange={(e) => onSortChange(e.target.value as 'recent' | 'difficulty' | 'acceptance')}
           className="rounded-lg border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs text-cyan-400 font-semibold focus:border-cyan-500 focus:outline-none"
         >
           <option value="recent">Sort: Recently Attempted</option>

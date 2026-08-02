@@ -13,8 +13,6 @@ export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { contest } = useContestStore();
 
-  const contestHref = contest?.id ? `/contest/${contest.id}` : '/contest/active';
-
   // Completely separate header layout for the Admin Panel
   if (pathname.startsWith('/admin')) {
     return (

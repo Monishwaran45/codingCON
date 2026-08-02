@@ -39,6 +39,8 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     failedTestCase: null,
   }),
   submitCode: async (problemId: string, language: string, code: string, isSubmit: boolean) => {
+    if (get().isStreaming) return; // Prevent double-submission while request is in-flight
+
     get().resetVerdict();
     set({ isStreaming: true, verdict: 'running' });
 

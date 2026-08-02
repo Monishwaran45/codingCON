@@ -16,15 +16,28 @@ export default function ProblemsPage() {
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'solved' | 'unsolved'>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'difficulty' | 'acceptance'>('recent');
 
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
   useEffect(() => {
-    async function loadData() {
+    let cancelled = false;
+    async function fetchProblems() {
       setIsLoading(true);
-      const data = await api.getProblems();
-      setProblems(data);
-      setIsLoading(false);
+      setHasError(false);
+      try {
+        const data = await api.getProblems();
+        if (!cancelled) setProblems(data);
+      } catch {
+        if (!cancelled) setHasError(true);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-    loadData();
-  }, []);
+    fetchProblems();
+    return () => { cancelled = true; };
+  }, [retryCount]);
+
+  const retryLoad = () => setRetryCount((c) => c + 1);
 
   // Instant Client-side filtering & sorting
   const filteredProblems = useMemo(() => {
@@ -89,7 +102,17 @@ export default function ProblemsPage() {
       </div>
 
       {/* Problem Cards Grid */}
-      {isLoading ? (
+      {hasError ? (
+        <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-12 text-center font-jetbrains">
+          <p className="text-xs text-red-400 mb-3">Unable to connect to the problem server.</p>
+          <button
+            onClick={() => retryLoad()}
+            className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-colors"
+          >
+            Retry Connection
+          </button>
+        </div>
+      ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <SkeletonLoader count={6} className="h-44" />
         </div>
