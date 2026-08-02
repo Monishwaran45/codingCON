@@ -20,7 +20,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = 'calc(100vh - 3
   }, [autosave]);
 
   return (
-    <div className="w-full bg-[#0d131f] border-b border-slate-800">
+    <div className="w-full bg-[#0d131f] border-b border-zinc-800">
       <Editor
         height={height}
         language={language === 'cpp' ? 'cpp' : language}

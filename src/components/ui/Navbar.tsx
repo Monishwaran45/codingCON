@@ -1,38 +1,87 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
-
 import { useContestStore } from '@/store/useContestStore';
+
+const ButterflyLogo: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 10C12 7 9.5 3 6.5 3 4 3 2 5 2 7.5c0 3.5 3 5.5 6 5.5.8 0 1.5-.2 2.2-.6L12 10z" opacity="0.9" />
+    <path d="M12 10c0-3 2.5-7 5.5-7 2.5 0 4.5 2 4.5 4.5 0 3.5-3 5.5-6 5.5-.8 0-1.5-.2-2.2-.6L12 10z" opacity="0.9" />
+    <path d="M12 12c-.7.6-1.4 1-2.2 1-2 0-3.8-1.5-3.8-3.5 0-1.5 1-2.5 2.2-2.5 1.5 0 3.3 2 3.8 5z" opacity="0.75" />
+    <path d="M12 12c.7.6 1.4 1 2.2 1 2 0 3.8-1.5 3.8-3.5 0-1.5-1-2.5-2.2-2.5-1.5 0-3.3 2-3.8 5z" opacity="0.75" />
+    <path d="M11.5 5c0-.3.2-.5.5-.5s.5.2.5.5v12c0 .3-.2.5-.5.5s-.5-.2-.5-.5V5z" />
+    <path d="M12 5c-.3-.3-.8-1-1.5-1.2-.3-.1-.5-.4-.4-.7.1-.3.4-.5.7-.4C11.8 3 12.3 3.8 12.5 4.2c.2-.4.7-1.2 1.7-1.5.3-.1.6.1.7.4s-.1.6-.4.7c-.7.2-1.2.9-1.5 1.2" />
+  </svg>
+);
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
   const { contest } = useContestStore();
 
-  // Completely separate header layout for the Admin Panel
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    const timer = setTimeout(() => {
+      setTheme(isDark ? 'dark' : 'light');
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', nextTheme);
+  };
+
+  const themeToggleBtn = (
+    <button
+      onClick={toggleTheme}
+      className="flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+      aria-label="Toggle theme"
+    >
+      {theme === 'light' ? (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      ) : (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+      )}
+    </button>
+  );
+
+  // Admin Portal Header
   if (pathname.startsWith('/admin')) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/admin" className="flex items-center gap-2 group font-jetbrains">
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-cyan-500 font-extrabold text-xs text-black">
-              A
-            </div>
-            <span className="text-xs font-extrabold tracking-wider text-white">
-              CODINGCON <span className="text-cyan-400">ADMIN</span>
+      <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+          <Link href="/admin" className="flex items-center gap-2 group">
+            <ButterflyLogo className="h-5 w-5 text-blue-600" />
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
+              CIT Chennai Admin <span className="text-zinc-400 dark:text-zinc-500">| College</span>
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1 font-jetbrains">
+          <nav className="flex items-center gap-1">
             <Link
               href="/admin"
               className={cn(
-                'text-[0.68rem] font-bold px-3 py-1.5 rounded-lg transition-colors',
-                pathname === '/admin' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'
+                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors',
+                pathname === '/admin'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               )}
             >
               Dashboard
@@ -40,26 +89,29 @@ export const Navbar: React.FC = () => {
             <Link
               href="/admin/problems/new"
               className={cn(
-                'text-[0.68rem] font-bold px-3 py-1.5 rounded-lg transition-colors',
-                pathname === '/admin/problems/new' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'
+                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors',
+                pathname === '/admin/problems/new'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               )}
             >
-              + Upload Problem
+              + Create Problem
             </Link>
             <Link
               href="/problems"
-              className="text-[0.68rem] font-bold text-zinc-500 hover:text-white px-3 py-1.5 transition-colors"
+              className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 px-3 py-1.5 transition-colors"
             >
-              Exit Admin →
+              Student Portal →
             </Link>
           </nav>
 
-          <div className="flex items-center gap-2 font-jetbrains">
+          <div className="flex items-center gap-2.5">
+            {themeToggleBtn}
             <button
               onClick={() => logout()}
-              className="text-[0.65rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
+              className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 rounded-md px-3 py-1.5 transition-colors"
             >
-              LOG OUT
+              Log Out
             </button>
           </div>
         </div>
@@ -67,43 +119,48 @@ export const Navbar: React.FC = () => {
     );
   }
 
+  // Student Navigation — Exactly 5 Items
+  const contestPath = contest?.id ? `/contest/${contest.id}` : '/contest/active';
   const navLinks = [
+    { href: '/', label: 'Dashboard' },
+    { href: contestPath, label: 'Contests' },
     { href: '/problems', label: 'Problems' },
-    ...(contest?.id ? [{ href: `/contest/${contest.id}`, label: 'Contest' }] : []),
+    { href: '/profile', label: 'Submissions' },
     { href: '/profile', label: 'Profile' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-black">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-zinc-800 shadow-[0_0_10px_rgba(255,255,255,0.05)] group-hover:scale-105 transition-transform duration-200">
-            <span className="font-jetbrains font-extrabold text-sm text-black">C</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="font-jetbrains text-sm font-extrabold tracking-wider text-white">
-              CODING<span className="text-cyan-400">CON</span>
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+        {/* Brand Header */}
+        <Link href="/" className="flex items-center gap-2.5">
+          <ButterflyLogo className="h-5.5 w-5.5 text-blue-600" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
+              CIT Chennai <span className="text-blue-500 font-extrabold">Test Platform</span>
             </span>
-            <span className="text-[0.6rem] font-bold text-zinc-500 tracking-widest uppercase">
-              Arena
+            <span className="text-[0.65rem] text-zinc-400 dark:text-zinc-500 font-normal border-l border-zinc-200 dark:border-zinc-800 pl-2">
+              College Portal
             </span>
           </div>
         </Link>
 
-        {/* Nav Links */}
-        <nav className="flex items-center gap-1 rounded-full bg-zinc-950 p-1 border border-zinc-900">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
+        {/* Navigation Bar */}
+        <nav className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 rounded-md p-0.5">
+          {navLinks.map((link, idx) => {
+            const isActive =
+              link.href === '/'
+                ? pathname === '/'
+                : pathname === link.href || pathname.startsWith(link.href + '/');
             return (
               <Link
-                key={link.href}
+                key={idx}
                 href={link.href}
                 className={cn(
-                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all duration-150',
+                  'text-xs font-medium px-3 py-1 rounded transition-colors',
                   isActive
-                    ? 'bg-white text-black font-black shadow-md'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
                 )}
               >
                 {link.label}
@@ -112,40 +169,31 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* User Profile / Auth Action */}
-        <div className="flex items-center gap-2.5 font-jetbrains">
+        {/* User Profile Info */}
+        <div className="flex items-center gap-3">
+          {themeToggleBtn}
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Link
                 href="/profile"
-                className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 hover:border-zinc-700 transition-colors"
+                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
               >
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
-                  {user.username[0].toUpperCase()}
-                </div>
-                <div className="flex flex-col text-left">
-                  <span className="text-[0.7rem] font-bold text-white leading-none mb-0.5">
-                    {user.username}
-                  </span>
-                  <span className="text-[0.62rem] text-cyan-400 font-extrabold leading-none">
-                    {user.rating} PTS
-                  </span>
-                </div>
+                <span className="font-mono text-zinc-700 dark:text-zinc-400">{user.username}</span>
+                <span className="text-[0.65rem] text-blue-500 dark:text-blue-400 font-semibold uppercase">{user.role}</span>
               </Link>
               <button
                 onClick={() => logout()}
-                className="text-[0.68rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
-                title="Log Out"
+                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               >
-                LOG OUT
+                Log Out
               </button>
             </div>
           ) : (
             <Link
               href="/"
-              className="text-xs font-bold text-white border border-white rounded px-4 py-1.5 hover:bg-white hover:text-black transition-colors duration-150"
+              className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              SIGN IN
+              Sign In
             </Link>
           )}
         </div>

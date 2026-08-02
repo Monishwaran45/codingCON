@@ -4,8 +4,8 @@ import { Navbar } from '@/components/ui/Navbar';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'codingCON | Competitive Coding & Algorithmic Contest Platform',
-  description: 'Next.js 14 Competitive Coding Contest Platform with real-time verdicts, WebSocket streaming, and loss-averse leaderboards.',
+  title: 'CIT Chennai Coding Test Platform',
+  description: 'Internal coding assessment platform for college faculty and students.',
 };
 
 export default function RootLayout({
@@ -16,9 +16,28 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark ${inter.variable} ${jetbrainsMono.variable} ${firaCode.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable} ${firaCode.variable}`}
+      suppressHydrationWarning
     >
-      <body className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme') || 'light';
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })()
+            `,
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 font-sans antialiased flex flex-col selection:bg-blue-500 selection:text-white dark:selection:text-zinc-950 transition-colors duration-150">
         <Navbar />
         <main className="flex-1">{children}</main>
       </body>

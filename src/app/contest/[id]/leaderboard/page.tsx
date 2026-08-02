@@ -42,15 +42,15 @@ export default function LeaderboardPage() {
   }, [contestId, setLeaderboard]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800 pb-5">
         <div>
-          <div className="flex items-center gap-2 font-jetbrains text-xs text-cyan-400 font-semibold uppercase tracking-wider mb-1">
-            <Link href={contestId ? `/contest/${contestId}` : '/problems'} className="hover:underline">← Back to Contest</Link>
+          <div className="flex items-center gap-2 text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">
+            <Link href={contestId ? `/contest/${contestId}` : '/problems'} className="hover:underline">← Return to Assessment</Link>
           </div>
-          <h1 className="font-jetbrains text-3xl font-extrabold text-slate-100 sm:text-4xl">
-            Live Standings Leaderboard
+          <h1 className="text-2xl font-extrabold text-white">
+            Assessment Live Standings
           </h1>
         </div>
 
@@ -60,8 +60,8 @@ export default function LeaderboardPage() {
       {isLoading ? (
         <SkeletonLoader count={8} className="h-14 w-full mb-3" />
       ) : leaderboard.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/10 p-12 text-center font-jetbrains">
-          <p className="text-xs text-slate-500">No leaderboard standings available yet.</p>
+        <div className="rounded-md border border-zinc-800 bg-zinc-950/40 p-12 text-center">
+          <p className="text-xs text-zinc-500">No leaderboard standings available yet.</p>
         </div>
       ) : (
         <LeaderboardTable

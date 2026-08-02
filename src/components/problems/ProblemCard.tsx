@@ -12,7 +12,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
   return (
     <Link
       href={`/problems/${problem.id}`}
-      className="group relative flex flex-col justify-between rounded-xl border border-zinc-900 bg-zinc-950 p-5 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150 shadow-md"
+      className="group relative flex flex-col justify-between rounded-md border border-zinc-900 bg-zinc-950 p-5 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150 shadow-md"
     >
       <div>
         {/* Top Header Row: Status icon + Title + Difficulty */}
@@ -46,7 +46,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           {problem.tags.map((tag) => (
             <span
               key={tag}
-              className="font-jetbrains text-[0.65rem] text-zinc-400 bg-zinc-900/60 border border-zinc-800 px-2.5 py-0.5 rounded"
+              className="font-jetbrains text-[0.65rem] text-zinc-400 bg-zinc-900/60 border border-zinc-800 px-2.5 py-0.5 rounded-md"
             >
               {tag}
             </span>
@@ -61,7 +61,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           <span className="font-bold text-zinc-300">{problem.acceptanceRate}%</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-cyan-400 font-extrabold">+{problem.points} PTS</span>
+          <span className="text-blue-400 font-bold">+{problem.points} PTS</span>
         </div>
       </div>
     </Link>
