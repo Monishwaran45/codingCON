@@ -53,7 +53,7 @@ export default function LandingPage() {
                   CONTEST
                 </span>
                 <span className="text-xs font-bold text-white group-hover:text-pink-400 transition-colors">
-                  Active Contest #88
+                  Contest
                 </span>
               </div>
               <span className="text-zinc-600 text-xs">→</span>
