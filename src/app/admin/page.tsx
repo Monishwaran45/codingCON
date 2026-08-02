@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Problem } from '@/types';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
-import { AdminGuard } from '@/components/admin/AdminGuard';
+
 
 export default function AdminDashboardPage() {
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -35,7 +35,7 @@ export default function AdminDashboardPage() {
   });
 
   return (
-    <AdminGuard>
+    <>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-6">
         {/* Header */}
         <div className="border-b border-zinc-200 dark:border-zinc-800 pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -137,6 +137,6 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
-    </AdminGuard>
+    </>
   );
 }

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Difficulty, TestCase } from '@/types';
 import { api } from '@/lib/api';
-import { AdminGuard } from '@/components/admin/AdminGuard';
+
 
 export default function CreateProblemPage() {
   const router = useRouter();
@@ -88,7 +88,7 @@ export default function CreateProblemPage() {
   const labelStyles = 'text-[0.68rem] font-medium text-zinc-500 dark:text-zinc-400 block mb-1';
 
   return (
-    <AdminGuard>
+    <>
       <div className="mx-auto max-w-4xl px-4 py-8 font-jetbrains">
         {/* Header */}
         <div className="mb-6 border-b border-zinc-200 dark:border-zinc-800 pb-4">
@@ -326,6 +326,6 @@ export default function CreateProblemPage() {
           </div>
         </form>
       </div>
-    </AdminGuard>
+    </>
   );
 }
