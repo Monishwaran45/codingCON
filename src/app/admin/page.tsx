@@ -2,11 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { AdminGuard } from '@/components/admin/AdminGuard';
+
 
 export default function AdminDashboardPage() {
   return (
-    <AdminGuard>
+    <>
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 font-jetbrains space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-900 pb-6">
@@ -65,6 +65,6 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       </div>
-    </AdminGuard>
+    </>
   );
 }
