@@ -15,6 +15,60 @@ export const Navbar: React.FC = () => {
 
   const contestHref = contest?.id ? `/contest/${contest.id}` : '/contest/active';
 
+  // Completely separate header layout for the Admin Panel
+  if (pathname.startsWith('/admin')) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-zinc-950/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+          <Link href="/admin" className="flex items-center gap-2 group font-jetbrains">
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-cyan-500 font-extrabold text-xs text-black">
+              A
+            </div>
+            <span className="text-xs font-extrabold tracking-wider text-white">
+              CODINGCON <span className="text-cyan-400">ADMIN</span>
+            </span>
+          </Link>
+
+          <nav className="flex items-center gap-1 font-jetbrains">
+            <Link
+              href="/admin"
+              className={cn(
+                'text-[0.68rem] font-bold px-3 py-1.5 rounded-lg transition-colors',
+                pathname === '/admin' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'
+              )}
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/admin/problems/new"
+              className={cn(
+                'text-[0.68rem] font-bold px-3 py-1.5 rounded-lg transition-colors',
+                pathname === '/admin/problems/new' ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-white'
+              )}
+            >
+              + Upload Problem
+            </Link>
+            <Link
+              href="/problems"
+              className="text-[0.68rem] font-bold text-zinc-500 hover:text-white px-3 py-1.5 transition-colors"
+            >
+              Exit Admin →
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-2 font-jetbrains">
+            <button
+              onClick={() => logout()}
+              className="text-[0.65rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
+            >
+              LOG OUT
+            </button>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   const navLinks = [
     { href: '/problems', label: 'Problems' },
     { href: contestHref, label: 'Contest' },
@@ -60,20 +114,8 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* User Profile & Admin Actions */}
+        {/* User Profile / Auth Action */}
         <div className="flex items-center gap-2.5 font-jetbrains">
-          <Link
-            href="/admin"
-            className={cn(
-              'text-[0.68rem] font-bold border px-3 py-1.5 rounded-lg transition-colors',
-              pathname.startsWith('/admin')
-                ? 'border-cyan-400 bg-cyan-500/10 text-cyan-400'
-                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white hover:border-zinc-700'
-            )}
-          >
-            ⚙️ Admin Panel
-          </Link>
-
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
               <Link
