@@ -18,8 +18,8 @@ export const VERDICT_CONFIG = {
   TLE: { label: 'TIME LIMIT EXCEEDED', color: 'text-amber-400', bg: 'bg-amber-500/20 border-amber-500/40' },
   MLE: { label: 'MEMORY LIMIT EXCEEDED', color: 'text-purple-400', bg: 'bg-purple-500/20 border-purple-500/40' },
   RE: { label: 'RUNTIME ERROR', color: 'text-rose-400', bg: 'bg-rose-500/20 border-rose-500/40' },
-  running: { label: 'RUNNING JUDGE', color: 'text-cyan-400', bg: 'bg-cyan-500/20 border-cyan-500/40' },
-  pending: { label: 'QUEUED', color: 'text-slate-400', bg: 'bg-slate-800/50 border-slate-700' },
+  running: { label: 'EVALUATING', color: 'text-blue-400', bg: 'bg-blue-500/20 border-blue-500/40' },
+  pending: { label: 'QUEUED', color: 'text-zinc-400', bg: 'bg-zinc-800/50 border-zinc-700' },
 } as const;
 
 // Deliberate UX warning thresholds (in seconds) for contest countdown timers
