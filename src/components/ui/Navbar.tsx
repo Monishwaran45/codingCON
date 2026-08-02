@@ -130,23 +130,26 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md font-jetbrains transition-colors duration-150">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
         {/* Brand Header */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <ButterflyLogo className="h-5.5 w-5.5 text-blue-600" />
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="p-1 rounded bg-blue-50 dark:bg-blue-950/50 border border-blue-200/50 dark:border-blue-800/50 group-hover:scale-105 transition-transform">
+            <ButterflyLogo className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
-              CIT Chennai <span className="text-blue-500 font-extrabold">Test Platform</span>
+            <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 tracking-wider uppercase">
+              CIT Chennai <span className="text-blue-600 dark:text-blue-400 font-black">CodingCON</span>
             </span>
-            <span className="text-[0.65rem] text-zinc-400 dark:text-zinc-500 font-normal border-l border-zinc-200 dark:border-zinc-800 pl-2">
-              College Portal
+            <span className="text-[0.62rem] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Exam Live
             </span>
           </div>
         </Link>
 
         {/* Navigation Bar */}
-        <nav className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 rounded-md p-0.5">
+        <nav className="flex items-center gap-1 border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-100/60 dark:bg-zinc-900/60 rounded-lg p-1">
           {navLinks.map((link, idx) => {
             const isActive =
               link.href === '/'
@@ -157,10 +160,10 @@ export const Navbar: React.FC = () => {
                 key={idx}
                 href={link.href}
                 className={cn(
-                  'text-xs font-medium px-3 py-1 rounded transition-colors',
+                  'text-xs font-semibold px-3 py-1 rounded-md transition-all duration-150',
                   isActive
-                    ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/40'
                 )}
               >
                 {link.label}
@@ -169,21 +172,40 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* User Profile Info */}
-        <div className="flex items-center gap-3">
+        {/* User Profile Info & Search trigger */}
+        <div className="flex items-center gap-2.5">
+          {/* Ctrl+K Quick Command Button */}
+          <button
+            onClick={() => {
+              const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
+              window.dispatchEvent(event);
+            }}
+            className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-xs text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>Search...</span>
+            <kbd className="text-[0.6rem] font-mono border border-zinc-200 dark:border-zinc-700 rounded px-1 py-0.2 bg-zinc-100 dark:bg-zinc-800">
+              Ctrl K
+            </kbd>
+          </button>
+
           {themeToggleBtn}
+
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link
                 href="/profile"
-                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
+                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
               >
-                <span className="font-mono text-zinc-700 dark:text-zinc-400">{user.username}</span>
-                <span className="text-[0.65rem] text-blue-500 dark:text-blue-400 font-semibold uppercase">{user.role}</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="font-semibold">{user.username}</span>
+                <span className="text-[0.6rem] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-wider">{user.role}</span>
               </Link>
               <button
                 onClick={() => logout()}
-                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 px-2 py-1 transition-colors"
               >
                 Log Out
               </button>
@@ -191,7 +213,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               href="/"
-              className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-md px-3.5 py-1.5 transition-colors shadow-sm"
             >
               Sign In
             </Link>
@@ -201,3 +223,4 @@ export const Navbar: React.FC = () => {
     </header>
   );
 };
+

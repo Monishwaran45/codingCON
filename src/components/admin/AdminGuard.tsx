@@ -20,6 +20,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     );
   }
 
+<<<<<<< HEAD
   // Access Denied Shield: Calm, minimal, academic restriction message
   if (!isAuthenticated || !user || user.role !== 'admin') {
     return (
@@ -38,6 +39,26 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
               className="inline-block rounded border border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-850 hover:text-white transition-colors"
             >
               Return to Student Portal
+=======
+  // Access Denied shield if not authenticated or role is not admin
+  if (!isAuthenticated || !user || user.role !== 'admin') {
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center font-jetbrains">
+        <div className="rounded-2xl border border-red-900/60 bg-red-950/20 p-8 shadow-2xl space-y-4">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xl font-bold">
+            🔒
+          </div>
+          <h2 className="text-lg font-extrabold text-white">Admin Access Restricted</h2>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            You must be authenticated with an <strong className="text-white">Administrator</strong> role to access the Instructor Portal.
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <Link
+              href="/"
+              className="inline-block rounded-xl bg-white px-5 py-2.5 text-xs font-extrabold text-black hover:bg-zinc-200 transition-colors"
+            >
+              Return to Public Platform
+>>>>>>> 3f83ee16e184f26e06c6da61c270dc9b41bf8374
             </Link>
           </div>
         </div>
