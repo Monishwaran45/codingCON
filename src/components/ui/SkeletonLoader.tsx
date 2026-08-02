@@ -13,7 +13,7 @@ export const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({ className, count
         <div
           key={i}
           className={cn(
-            'animate-pulse bg-zinc-800/60 rounded-md border border-zinc-800',
+            'animate-pulse bg-slate-800/60 rounded-md border border-slate-800',
             className
           )}
         />

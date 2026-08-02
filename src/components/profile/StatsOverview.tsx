@@ -8,19 +8,19 @@ interface StatsOverviewProps {
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ user }) => {
   return (
     <div className="font-jetbrains grid grid-cols-2 gap-4 sm:grid-cols-3">
-      <div className="rounded-md border border-zinc-850 bg-zinc-950 p-4 text-center">
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-4 text-center">
         <span className="text-xs text-zinc-500 block mb-1">Solved Problems</span>
-        <span className="text-xl font-bold text-zinc-100">{user.solvedCount}</span>
+        <span className="text-2xl font-extrabold text-white">{user.solvedCount}</span>
       </div>
 
-      <div className="rounded-md border border-zinc-850 bg-zinc-950 p-4 text-center">
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-4 text-center">
         <span className="text-xs text-zinc-500 block mb-1">Current Rating</span>
-        <span className="text-xl font-bold text-blue-400">{user.rating}</span>
+        <span className="text-2xl font-extrabold text-cyan-400">{user.rating}</span>
       </div>
 
-      <div className="rounded-md border border-zinc-850 bg-zinc-950 p-4 text-center">
+      <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-4 text-center">
         <span className="text-xs text-zinc-500 block mb-1">Max Rating</span>
-        <span className="text-xl font-bold text-zinc-300">{user.maxRating}</span>
+        <span className="text-2xl font-extrabold text-indigo-400">{user.maxRating}</span>
       </div>
     </div>
   );

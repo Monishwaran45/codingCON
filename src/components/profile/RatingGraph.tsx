@@ -31,20 +31,20 @@ export const RatingGraph: React.FC<RatingGraphProps> = ({ history }) => {
     .join(' ');
 
   return (
-    <div className="font-jetbrains rounded-md border border-zinc-800 bg-zinc-900/60 p-6 shadow-md">
+    <div className="font-jetbrains rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
             Rating Trajectory
           </h3>
-          <p className="text-xs text-zinc-400">
-            Historical assessment performance progress
+          <p className="text-xs text-slate-400">
+            Historical competitive performance progress
           </p>
         </div>
 
         <div className="text-right">
-          <span className="text-xs text-zinc-400 block">Current Rating</span>
-          <span className="text-lg font-extrabold text-blue-400">
+          <span className="text-xs text-slate-400 block">Current Rating</span>
+          <span className="text-lg font-extrabold text-cyan-400">
             {history[history.length - 1].rating} pts
           </span>
         </div>
@@ -54,9 +54,9 @@ export const RatingGraph: React.FC<RatingGraphProps> = ({ history }) => {
       <div className="w-full overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
           {/* Grid lines */}
-          <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#27272a" strokeDasharray="4 4" />
-          <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="#27272a" strokeDasharray="4 4" />
-          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#27272a" />
+          <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="#1e293b" strokeDasharray="4 4" />
+          <line x1={padding} y1={height / 2} x2={width - padding} y2={height / 2} stroke="#1e293b" strokeDasharray="4 4" />
+          <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#1e293b" />
 
           {/* Polyline Path */}
           <polyline
@@ -78,7 +78,7 @@ export const RatingGraph: React.FC<RatingGraphProps> = ({ history }) => {
                 cx={x}
                 cy={y}
                 r="4"
-                className="fill-blue-400 stroke-zinc-950 stroke-2 hover:r-6 transition-all cursor-pointer"
+                className="fill-cyan-400 stroke-slate-950 stroke-2 hover:r-6 transition-all cursor-pointer"
               >
                 <title>{`${h.date}: ${h.rating} pts`}</title>
               </circle>
@@ -87,8 +87,8 @@ export const RatingGraph: React.FC<RatingGraphProps> = ({ history }) => {
 
           <defs>
             <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#60a5fa" />
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#818cf8" />
             </linearGradient>
           </defs>
         </svg>
