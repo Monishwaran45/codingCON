@@ -1,22 +1,32 @@
 {
-  "name": "codingcon-frontend",
-  "version": "1.0.0",
-  "description": "Frontend workspace for codingCON - Competitive Coding & Contest Platform",
-  "main": "index.html",
+  "name": "codingcon",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "start": "npx serve -s . -p 3000",
-    "dev": "npx serve -s . -p 3000"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Monishwaran45/codingCON.git"
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.43.0",
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^3.6.0",
+    "zustand": "^5.0.14"
   },
-  "keywords": [
-    "codingCON",
-    "competitive-programming",
-    "frontend",
-    "contest-arena"
-  ],
-  "author": "Monishwaran45",
-  "license": "ISC"
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
 }

@@ -1,62 +1,36 @@
-# codingCON - Frontend Branch
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-Welcome to the **`frontend`** branch of **[codingCON](https://github.com/Monishwaran45/codingCON)**!
+## Getting Started
 
-This branch contains the user interface and interactive web application for the **codingCON Competitive Coding Platform**.
-
----
-
-## 🌟 Key Features
-
-- 🎯 **Problem Arena**: Interactive problem statement viewer with input/output specs and copyable test cases.
-- 💻 **Code Editor & Runner**: Multi-language support (JavaScript, Python, C++, Java) with line numbers, code resetting, sample test execution, and full solution evaluator.
-- 🏆 **Live Leaderboard**: Real-time participant standings, score breakdowns, penalty calculations, and handle search.
-- 📜 **Submissions Log**: Comprehensive history tracking verdicts (Accepted, Wrong Answer, TLE), execution runtime, and time metrics.
-- ⏱️ **Live Contest Countdown**: Real-time timer tracking remaining contest duration.
-- 🎨 **Modern Dark Aesthetic**: Sleek glassmorphism panels, glowing neon accents (`#00F2FE`), and responsive CSS Grid / Flexbox layouts.
-
----
-
-## 📂 File Architecture
-
-```text
-codingCON/
-├── index.html       # Semantic HTML layout with Navigation, Arena, Leaderboard & Submissions tabs
-├── styles.css       # Custom CSS design system, dark mode theme, glassmorphism & responsive rules
-├── app.js           # Interactive state manager, code runner simulator, tab router & timer
-├── package.json     # Node manifest and local dev scripts
-└── README.md        # Branch documentation and guide
-```
-
----
-
-## 🚀 Local Development Setup
-
-To view and run the frontend application locally:
-
-### Option 1: Direct Browser Access
-Simply open `index.html` in your web browser.
-
-### Option 2: Node Local Server
-Run a local web server using `npm`:
+First, run the development server:
 
 ```bash
-# Clone the repository and switch to frontend branch
-git checkout frontend
-
-# Start local dev server
-npm start
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
-Access the application at `http://localhost:3000`.
 
----
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## 🛠️ Git Workflow & Commit Guidelines
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-When committing changes to the `frontend` branch, follow clean commit message standards:
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-```bash
-git add .
-git commit -m "feat(frontend): add interactive problem arena and code evaluator"
-git push origin frontend
-```
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
