@@ -4,11 +4,13 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Difficulty, TestCase } from '@/types';
 import { api } from '@/lib/api';
+import { AdminGuard } from '@/components/admin/AdminGuard';
 
 export default function CreateProblemPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -21,14 +23,15 @@ export default function CreateProblemPage() {
   const [inputFormat, setInputFormat] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
 
-  // Dynamic Test Cases
+  // Dynamic Test Cases with unique IDs
   const [testCases, setTestCases] = useState<TestCase[]>([]);
 
   const addTestCase = (isSample: boolean) => {
+    const newId = 'tc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     setTestCases((prev) => [
       ...prev,
       {
-        id: prev.length + 1,
+        id: newId,
         input: '',
         expectedOutput: '',
         isSample,
@@ -50,47 +53,73 @@ export default function CreateProblemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description) return;
-
-    setIsSubmitting(true);
+    setErrorMessage('');
     setSuccessMessage('');
 
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    // Strict Validation
+    if (!title.trim() || !description.trim()) {
+      setErrorMessage('Problem title and description are required.');
+      return;
+    }
+
+    if (points <= 0 || timeLimitMs < 50 || memoryLimitMb < 16) {
+      setErrorMessage('Numeric limits must be positive (Points >= 1, Time Limit >= 50ms, Memory Limit >= 16MB).');
+      return;
+    }
+
+    const tags = Array.from(
+      new Set(
+        tagsInput
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t.length > 0)
+      )
+    );
+
+    setIsSubmitting(true);
 
     const problemData = {
-      title,
+      title: title.trim(),
       difficulty,
       points: Number(points),
       timeLimitMs: Number(timeLimitMs),
       memoryLimitMb: Number(memoryLimitMb),
       tags,
-      description,
-      inputFormat,
-      outputFormat,
+      description: description.trim(),
+      inputFormat: inputFormat.trim(),
+      outputFormat: outputFormat.trim(),
       sampleTestCases: testCases,
     };
 
-    const created = await api.createProblem(problemData);
-    setIsSubmitting(false);
-    setSuccessMessage(`Problem "${created.title}" successfully created!`);
-
-    setTimeout(() => {
-      router.push('/problems');
-    }, 1200);
+    try {
+      const created = await api.createProblem(problemData);
+      setSuccessMessage(`Problem "${created.title}" successfully created!`);
+      setTimeout(() => {
+        router.push('/admin');
+      }, 1200);
+    } catch {
+      setErrorMessage('Failed to upload problem statement. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 font-jetbrains">
-      {/* Header */}
-      <div className="mb-8 border-b border-zinc-900 pb-6">
-        <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">
-          <span>Admin Portal</span>
+    <AdminGuard>
+      <div className="mx-auto max-w-4xl px-4 py-10 font-jetbrains">
+        {/* Header */}
+        <div className="mb-8 border-b border-zinc-900 pb-6">
+          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">
+            <span>Admin Portal</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-white">Upload New Problem Statement</h1>
         </div>
-        <h1 className="text-3xl font-extrabold text-white">Upload New Problem Statement</h1>
-      </div>
+
+        {errorMessage && (
+          <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-xs font-bold text-red-400">
+            ⚠️ {errorMessage}
+          </div>
+        )}
 
       {successMessage && (
         <div className="mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-400">
@@ -310,7 +339,7 @@ export default function CreateProblemPage() {
         <div className="flex items-center justify-end gap-4 pt-4">
           <button
             type="button"
-            onClick={() => router.push('/problems')}
+            onClick={() => router.push('/admin')}
             className="rounded-xl border border-zinc-800 bg-zinc-950 px-6 py-3 text-xs font-bold text-zinc-400 hover:text-white"
           >
             Cancel
@@ -325,5 +354,6 @@ export default function CreateProblemPage() {
         </div>
       </form>
     </div>
+    </AdminGuard>
   );
 }
