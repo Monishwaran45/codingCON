@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Submission } from '@/types';
 import { api } from '@/lib/api';
-import { StreakWidget } from '@/components/profile/StreakWidget';
 import { RatingGraph } from '@/components/profile/RatingGraph';
 import { StatsOverview } from '@/components/profile/StatsOverview';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
@@ -55,9 +54,6 @@ export default function ProfilePage() {
           <p className="text-xs text-slate-400 mt-1">{user.email} • Role: {user.role}</p>
         </div>
       </div>
-
-      {/* Streak Widget */}
-      <StreakWidget streakDays={user.streakDays} />
 
       {/* Stats Grid */}
       <StatsOverview user={user} />
