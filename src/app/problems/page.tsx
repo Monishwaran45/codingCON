@@ -76,14 +76,14 @@ export default function ProblemsPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       {/* Header Banner */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 font-jetbrains text-xs text-cyan-400 font-semibold uppercase tracking-wider mb-1">
+        <div className="flex items-center gap-2 font-jetbrains text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider mb-1">
           <span>Problem Archive</span>
         </div>
-        <h1 className="font-jetbrains text-3xl font-extrabold text-slate-100 sm:text-4xl">
-          Problem Set Arena
+        <h1 className="font-jetbrains text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 sm:text-4xl">
+          Problem Set
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Select a problem to start solving. Track your progress with instant Zeigarnik state feedback.
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          Choose a problem to begin your assessment. Your submission status is tracked automatically.
         </p>
       </div>
 
@@ -103,11 +103,11 @@ export default function ProblemsPage() {
 
       {/* Problem Cards Grid */}
       {hasError ? (
-        <div className="rounded-xl border border-red-900/60 bg-red-950/20 p-12 text-center font-jetbrains">
-          <p className="text-xs text-red-400 mb-3">Unable to connect to the problem server.</p>
+        <div className="rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/20 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-red-600 dark:text-red-400 mb-3">Unable to connect to the problem server.</p>
           <button
             onClick={() => retryLoad()}
-            className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-colors"
+            className="rounded-md border border-red-300 dark:border-red-500/40 bg-red-100 dark:bg-red-500/10 px-4 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors"
           >
             Retry Connection
           </button>
@@ -123,19 +123,19 @@ export default function ProblemsPage() {
           ))}
         </div>
       ) : problems.length === 0 ? (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/10 p-12 text-center font-jetbrains">
-          <p className="text-xs text-slate-500">No problems available in the archive yet.</p>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/10 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-zinc-500">No problems available in the archive yet.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center font-jetbrains">
-          <p className="text-xs text-slate-400 mb-2">No problems match your current filters.</p>
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">No problems match your current filters.</p>
           <button
             onClick={() => {
               setSearchQuery('');
               setSelectedDifficulty('all');
               setSelectedStatus('all');
             }}
-            className="text-xs text-cyan-400 hover:underline"
+            className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
           >
             Reset Filters
           </button>
