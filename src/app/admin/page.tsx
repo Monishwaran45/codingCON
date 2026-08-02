@@ -26,33 +26,6 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      {/* Quick Metrics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-5">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            System Capacity
-          </span>
-          <span className="text-2xl font-extrabold text-white">500+ Students</span>
-          <p className="text-[0.68rem] text-zinc-600 mt-1">60fps Virtualized Leaderboard enabled</p>
-        </div>
-
-        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-5">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Active Contests
-          </span>
-          <span className="text-2xl font-extrabold text-pink-400">Contest #88</span>
-          <p className="text-[0.68rem] text-zinc-600 mt-1">WebSocket real-time verdict pipeline</p>
-        </div>
-
-        <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-5">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Problem Archive
-          </span>
-          <span className="text-2xl font-extrabold text-emerald-400">Ready for Upload</span>
-          <p className="text-[0.68rem] text-zinc-600 mt-1">Upload problem statements & testcases</p>
-        </div>
-      </div>
-
       {/* Admin Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
         {/* Upload Problems Tile */}
