@@ -71,7 +71,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { href: '/problems', label: 'Problems' },
-    { href: contestHref, label: 'Contest' },
+    ...(contest?.id ? [{ href: `/contest/${contest.id}`, label: 'Contest' }] : []),
     { href: '/profile', label: 'Profile' },
   ];
 
