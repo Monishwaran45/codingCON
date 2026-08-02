@@ -16,15 +16,13 @@ export default function CreateProblemPage() {
   const [points, setPoints] = useState(100);
   const [timeLimitMs, setTimeLimitMs] = useState(1000);
   const [memoryLimitMb, setMemoryLimitMb] = useState(256);
-  const [tagsInput, setTagsInput] = useState('dp, algorithms');
+  const [tagsInput, setTagsInput] = useState('');
   const [description, setDescription] = useState('');
   const [inputFormat, setInputFormat] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
 
   // Dynamic Test Cases
-  const [testCases, setTestCases] = useState<TestCase[]>([
-    { id: 1, input: '5\n1 2 3 4 5', expectedOutput: '15', isSample: true },
-  ]);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
 
   const addTestCase = (isSample: boolean) => {
     setTestCases((prev) => [

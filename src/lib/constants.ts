@@ -18,67 +18,40 @@ export const VERDICT_CONFIG = {
 } as const;
 
 export const LANGUAGE_STARTERS: Record<string, string> = {
-  cpp: `// C++ 20 Solution
-#include <iostream>
-#include <vector>
-#include <algorithm>
-
+  cpp: `#include <bits/stdc++.h>
 using namespace std;
-
-void solve() {
-    int n;
-    if (!(cin >> n)) return;
-    vector<int> arr(n);
-    for (int i = 0; i < n; i++) cin >> arr[i];
-    
-    // Write optimal solution here
-    cout << "Ready" << endl;
-}
 
 int main() {
     ios_base::sync_with_stdio(false);
     cin.tie(NULL);
-    solve();
+    
     return 0;
 }
 `,
-  python: `# Python 3.11 Solution
-import sys
+  python: `import sys
 
 def solve():
-    input_data = sys.stdin.read().split()
-    if not input_data:
-        return
-    # Write optimal solution here
-    print("Ready")
+    pass
 
 if __name__ == '__main__':
     solve()
 `,
-  javascript: `// JavaScript (Node.js 18) Solution
-const fs = require('fs');
+  javascript: `const fs = require('fs');
 
-function solve() {
-    const input = fs.readFileSync('/dev/stdin', 'utf-8').trim().split(/\\s+/);
-    if (!input || input.length === 0 || input[0] === '') return;
+function main() {
+    const input = fs.readFileSync('/dev/stdin', 'utf-8').trim().split(/\s+/);
+    if (!input || input[0] === '') return;
     
-    // Write optimal solution here
-    console.log("Ready");
 }
 
-solve();
+main();
 `,
-  java: `// Java 17 Solution
-import java.util.Scanner;
+  java: `import java.util.*;
 
 public class Solution {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextInt()) return;
-        int n = sc.nextInt();
         
-        // Write optimal solution here
-        System.out.println("Ready");
     }
 }
 `

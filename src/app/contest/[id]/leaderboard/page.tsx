@@ -10,13 +10,18 @@ import { useContestStore } from '@/store/useContestStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLeaderboardSocket } from '@/hooks/useSocket';
 
+import { useParams } from 'next/navigation';
+
 export default function LeaderboardPage() {
+  const params = useParams();
+  const contestId = (params?.id as string) || '';
+
   const { leaderboard, setLeaderboard } = useContestStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   // Subscribe to live WebSocket updates from the NestJS Leaderboard microservice
-  useLeaderboardSocket('c88', (updatedLeaderboard) => {
+  useLeaderboardSocket(contestId, (updatedLeaderboard) => {
     if (Array.isArray(updatedLeaderboard)) {
       setLeaderboard(updatedLeaderboard);
     }
@@ -24,13 +29,17 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     async function loadLeaderboard() {
+      if (!contestId) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
-      const data = await api.getLeaderboard('c88');
+      const data = await api.getLeaderboard(contestId);
       setLeaderboard(data);
       setIsLoading(false);
     }
     loadLeaderboard();
-  }, [setLeaderboard]);
+  }, [contestId, setLeaderboard]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -38,7 +47,7 @@ export default function LeaderboardPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
           <div className="flex items-center gap-2 font-jetbrains text-xs text-cyan-400 font-semibold uppercase tracking-wider mb-1">
-            <Link href="/contest/c88" className="hover:underline">← Back to Contest</Link>
+            <Link href={contestId ? `/contest/${contestId}` : '/problems'} className="hover:underline">← Back to Contest</Link>
           </div>
           <h1 className="font-jetbrains text-3xl font-extrabold text-slate-100 sm:text-4xl">
             Live Standings Leaderboard

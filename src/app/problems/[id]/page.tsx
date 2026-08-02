@@ -15,9 +15,11 @@ import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useVerdictStore } from '@/store/useVerdictStore';
 
+import { useSubmissionSocket } from '@/hooks/useSocket';
+
 export default function ProblemDetailPage() {
   const params = useParams();
-  const problemId = (params?.id as string) || 'p1';
+  const problemId = (params?.id as string) || '';
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,6 +27,7 @@ export default function ProblemDetailPage() {
   const { language, code, setLanguage, resetCode, lastSavedAt } = useEditorStore();
   const {
     isStreaming,
+    submissionId,
     verdict,
     passedTestCases,
     totalTestCases,
@@ -32,12 +35,20 @@ export default function ProblemDetailPage() {
     memoryKb,
     testCaseResults,
     failedTestCase,
-    runMockSubmission,
+    submitCode,
+    updateVerdictFromSocket,
     resetVerdict,
   } = useVerdictStore();
 
+  // Real-time WebSocket connection to NestJS Judge Cluster execution channel
+  useSubmissionSocket(submissionId, updateVerdictFromSocket);
+
   useEffect(() => {
     async function loadProblem() {
+      if (!problemId) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       const data = await api.getProblemById(problemId);
       setProblem(data);
@@ -80,8 +91,8 @@ export default function ProblemDetailPage() {
           language={language}
           onLanguageChange={setLanguage}
           onReset={resetCode}
-          onRun={() => runMockSubmission(code, false)}
-          onSubmit={() => runMockSubmission(code, true)}
+          onRun={() => submitCode(problemId, language, code, false)}
+          onSubmit={() => submitCode(problemId, language, code, true)}
           isStreaming={isStreaming}
           lastSavedAt={lastSavedAt}
         />

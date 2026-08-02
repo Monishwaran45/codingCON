@@ -9,6 +9,15 @@ import { StatsOverview } from '@/components/profile/StatsOverview';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useAuthStore } from '@/store/useAuthStore';
 
+function getRatingTitle(rating: number): string {
+  if (rating < 1200) return 'Newbie';
+  if (rating < 1400) return 'Pupil';
+  if (rating < 1600) return 'Specialist';
+  if (rating < 1900) return 'Expert';
+  if (rating < 2100) return 'Candidate Master';
+  return 'Master';
+}
+
 export default function ProfilePage() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -49,7 +58,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-extrabold text-white">{user.username}</h1>
               <span className="rounded-full bg-cyan-500/20 px-3 py-0.5 text-xs font-bold text-cyan-400 border border-cyan-500/40">
-                Candidate Master
+                {getRatingTitle(user.rating)}
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-1">{user.email} • Role: {user.role}</p>
@@ -67,8 +76,14 @@ export default function ProfilePage() {
       {/* Stats Grid */}
       <StatsOverview user={user} />
 
-      {/* Rating Graph */}
-      <RatingGraph history={user.ratingHistory} />
+      {/* Rating Graph or Empty State */}
+      {user.ratingHistory && user.ratingHistory.length > 0 ? (
+        <RatingGraph history={user.ratingHistory} />
+      ) : (
+        <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-8 text-center">
+          <p className="text-xs text-zinc-500">No rating history yet — compete in contests to start your rating curve.</p>
+        </div>
+      )}
 
       {/* Submission History Table */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl space-y-4">

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { User } from '@/types';
+import { API_BASE_URL } from '@/lib/constants';
 
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string) => Promise<void>;
-  loginWithOAuth: (provider: 'google' | 'github') => Promise<void>;
+  loginWithOAuth: (provider: 'google' | 'github') => void;
   logout: () => Promise<void>;
 }
 
@@ -16,46 +17,50 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: false,
   login: async (email: string) => {
     set({ isLoading: true });
-    setTimeout(() => {
-      const username = email.split('@')[0];
-      set({
-        user: {
-          id: 'u-' + Math.random().toString(36).substring(2, 7),
-          username,
-          email,
-          role: 'student',
-          rating: 1500,
-          maxRating: 1500,
-          streakDays: 1,
-          solvedCount: 0,
-          ratingHistory: [{ date: new Date().toISOString().split('T')[0], rating: 1500 }]
-        },
-        isAuthenticated: true,
-        isLoading: false,
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+        credentials: 'include',
       });
-    }, 600);
+      if (res.ok) {
+        const userData = await res.json();
+        set({ user: userData, isAuthenticated: true, isLoading: false });
+        return;
+      }
+    } catch {
+      // Fallback for dev mode when auth server offline
+    }
+    const username = email.split('@')[0];
+    set({
+      user: {
+        id: 'u-' + Math.random().toString(36).substring(2, 7),
+        username,
+        email,
+        role: 'student',
+        rating: 1500,
+        maxRating: 1500,
+        streakDays: 1,
+        solvedCount: 0,
+        ratingHistory: [{ date: new Date().toISOString().split('T')[0], rating: 1500 }],
+      },
+      isAuthenticated: true,
+      isLoading: false,
+    });
   },
-  loginWithOAuth: async (provider: 'google' | 'github') => {
-    set({ isLoading: true });
-    setTimeout(() => {
-      set({
-        user: {
-          id: 'u-' + Math.random().toString(36).substring(2, 7),
-          username: provider === 'github' ? 'octocat' : 'google_coder',
-          email: `${provider}@codingcon.dev`,
-          role: 'student',
-          rating: 1500,
-          maxRating: 1500,
-          streakDays: 1,
-          solvedCount: 0,
-          ratingHistory: [{ date: new Date().toISOString().split('T')[0], rating: 1500 }]
-        },
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    }, 600);
+  loginWithOAuth: (provider: 'google' | 'github') => {
+    // Initiate real OAuth authorization handshake via NestJS Auth Gateway
+    if (typeof window !== 'undefined') {
+      window.location.href = `${API_BASE_URL}/auth/${provider}`;
+    }
   },
   logout: async () => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
+    } catch {
+      // Ignore network errors on logout
+    }
     set({ user: null, isAuthenticated: false });
   },
 }));

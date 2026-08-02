@@ -9,21 +9,30 @@ import { ProblemCard } from '@/components/problems/ProblemCard';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useContestStore } from '@/store/useContestStore';
 
+import { useParams } from 'next/navigation';
+
 export default function ContestPage() {
+  const params = useParams();
+  const contestId = (params?.id as string) || '';
+
   const { contest, setContest } = useContestStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadContest() {
+      if (!contestId) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
-      const data = await api.getContest('c88');
+      const data = await api.getContest(contestId);
       if (data) {
         setContest(data);
       }
       setIsLoading(false);
     }
     loadContest();
-  }, [setContest]);
+  }, [contestId, setContest]);
 
   if (isLoading) {
     return (
@@ -47,7 +56,7 @@ export default function ContestPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-      {/* Contest Banner with Yerkes-Dodson timer */}
+      {/* Contest Banner */}
       <ContestBanner contest={contest} />
 
       {/* Navigation tabs */}
@@ -56,7 +65,7 @@ export default function ContestPage() {
           Contest Problems ({contest.problems.length})
         </span>
         <Link
-          href="/contest/c88/leaderboard"
+          href={`/contest/${contest.id}/leaderboard`}
           className="text-sm font-bold text-slate-400 hover:text-slate-200 pb-3 -mb-3 transition-colors"
         >
           Live Leaderboard 🏆

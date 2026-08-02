@@ -6,13 +6,18 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
 
+import { useContestStore } from '@/store/useContestStore';
+
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { contest } = useContestStore();
+
+  const contestHref = contest?.id ? `/contest/${contest.id}` : '/contest/active';
 
   const navLinks = [
     { href: '/problems', label: 'Problems' },
-    { href: '/contest/c88', label: 'Contest' },
+    { href: contestHref, label: 'Contest' },
     { href: '/profile', label: 'Profile' },
   ];
 

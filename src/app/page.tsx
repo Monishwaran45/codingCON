@@ -47,7 +47,7 @@ export default function LandingPage() {
 
           {/* Contest Card */}
           <Link
-            href="/contest/c88"
+            href="/contest/active"
             className="group block rounded-xl border border-zinc-800 bg-zinc-950 p-4 hover:border-pink-500/50 hover:bg-zinc-900/40 transition-all duration-150"
           >
             <div className="flex items-center justify-between">
