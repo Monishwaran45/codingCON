@@ -10,7 +10,6 @@ export default function CreateProblemPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -23,15 +22,14 @@ export default function CreateProblemPage() {
   const [inputFormat, setInputFormat] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
 
-  // Dynamic Test Cases with unique IDs
+  // Dynamic Test Cases
   const [testCases, setTestCases] = useState<TestCase[]>([]);
 
   const addTestCase = (isSample: boolean) => {
-    const newId = 'tc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     setTestCases((prev) => [
       ...prev,
       {
-        id: newId,
+        id: prev.length + 1,
         input: '',
         expectedOutput: '',
         isSample,
@@ -53,45 +51,33 @@ export default function CreateProblemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    // Strict Validation
-    if (!title.trim() || !description.trim()) {
-      setErrorMessage('Problem title and description are required.');
-      return;
-    }
-
-    if (points <= 0 || timeLimitMs < 50 || memoryLimitMb < 16) {
-      setErrorMessage('Numeric limits must be positive (Points >= 1, Time Limit >= 50ms, Memory Limit >= 16MB).');
-      return;
-    }
-
-    const tags = Array.from(
-      new Set(
-        tagsInput
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter((t) => t.length > 0)
-      )
-    );
+    if (!title || !description) return;
 
     setIsSubmitting(true);
+    setSuccessMessage('');
+
+    const tags = tagsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
 
     const problemData = {
-      title: title.trim(),
+      title,
       difficulty,
       points: Number(points),
       timeLimitMs: Number(timeLimitMs),
       memoryLimitMb: Number(memoryLimitMb),
       tags,
-      description: description.trim(),
-      inputFormat: inputFormat.trim(),
-      outputFormat: outputFormat.trim(),
+      description,
+      inputFormat,
+      outputFormat,
       sampleTestCases: testCases,
     };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
     const created = await api.createProblem(problemData);
     setIsSubmitting(false);
     setSuccessMessage(`Problem "${created.title}" successfully created!`);
@@ -99,6 +85,7 @@ export default function CreateProblemPage() {
     setTimeout(() => {
       router.push('/admin');
     }, 1200);
+<<<<<<< HEAD
 =======
     try {
       const created = await api.createProblem(problemData);
@@ -112,6 +99,8 @@ export default function CreateProblemPage() {
       setIsSubmitting(false);
     }
 >>>>>>> 3f83ee16e184f26e06c6da61c270dc9b41bf8374
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
   };
 
   const inputStyles =
@@ -120,6 +109,7 @@ export default function CreateProblemPage() {
 
   return (
     <>
+<<<<<<< HEAD
 <<<<<<< HEAD
       <div className="mx-auto max-w-4xl px-4 py-8 font-jetbrains">
         {/* Header */}
@@ -134,27 +124,36 @@ export default function CreateProblemPage() {
         </div>
 =======
       <div className="mx-auto max-w-4xl px-4 py-10 font-jetbrains">
+=======
+      <div className="mx-auto max-w-4xl px-4 py-8 font-jetbrains">
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
         {/* Header */}
-        <div className="mb-8 border-b border-zinc-900 pb-6">
-          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">
-            <span>Admin Portal</span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-white">Upload New Problem Statement</h1>
+        <div className="mb-6 border-b border-zinc-200 dark:border-zinc-800 pb-4">
+          <span className="text-[0.65rem] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
+            Instructor Administration
+          </span>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Create New Problem</h1>
+          <p className="text-xs text-zinc-500 mt-1">
+            Define problem metadata, statement specification, and evaluation test cases.
+          </p>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-xs font-bold text-red-400">
-            ⚠️ {errorMessage}
-          </div>
-        )}
->>>>>>> 3f83ee16e184f26e06c6da61c270dc9b41bf8374
 
         {successMessage && (
           <div className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
             ✓ {successMessage} Redirecting...
           </div>
         )}
+>>>>>>> 3f83ee16e184f26e06c6da61c270dc9b41bf8374
 
+<<<<<<< HEAD
+        {successMessage && (
+          <div className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            ✓ {successMessage} Redirecting...
+          </div>
+        )}
+
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Core Metadata */}
           <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-5 space-y-4 transition-colors">
@@ -356,6 +355,9 @@ export default function CreateProblemPage() {
           </div>
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
           {/* Form Submit */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
@@ -375,6 +377,7 @@ export default function CreateProblemPage() {
           </div>
         </form>
       </div>
+<<<<<<< HEAD
 =======
         {/* Form Submit */}
         <div className="flex items-center justify-end gap-4 pt-4">
@@ -396,6 +399,8 @@ export default function CreateProblemPage() {
       </form>
     </div>
 >>>>>>> 3f83ee16e184f26e06c6da61c270dc9b41bf8374
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
     </>
   );
 }

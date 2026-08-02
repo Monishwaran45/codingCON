@@ -93,7 +93,11 @@ export default function ProblemDetailPage() {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
         <p className="text-xs text-zinc-500 mb-4">The requested problem could not be found.</p>
+<<<<<<< HEAD
         <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold">
+=======
+        <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
           Return to Problem Archive
         </Link>
       </div>
@@ -101,6 +105,7 @@ export default function ProblemDetailPage() {
   }
 
   return (
+<<<<<<< HEAD
     <div className="flex h-[calc(100vh-53px)] w-full overflow-hidden bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
       {/* Left Pane: Tabbed Problem Workspace */}
       <div className="w-1/2 flex flex-col border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
@@ -184,6 +189,12 @@ export default function ProblemDetailPage() {
             </div>
           )}
         </div>
+=======
+    <div className="flex h-[calc(100vh-50px)] w-full overflow-hidden bg-white dark:bg-zinc-950 transition-colors duration-150">
+      {/* Left Pane: Scrollable Problem Statement */}
+      <div className="w-1/2 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto">
+        <ProblemStatement problem={problem} />
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
       </div>
 
       {/* Right Pane: Code Editor + Real-time Verdict Workspace */}
@@ -204,6 +215,7 @@ export default function ProblemDetailPage() {
           <CodeEditor height="100%" />
         </div>
 
+<<<<<<< HEAD
         {/* Real-time Verdict & Test Case Panel */}
         <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 max-h-[320px] overflow-y-auto transition-colors duration-150">
           <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-900 pb-2 mb-3">
@@ -233,6 +245,11 @@ export default function ProblemDetailPage() {
               customOutput={customOutput}
             />
           ) : verdict || isStreaming ? (
+=======
+        {/* Real-time Verdict Panel */}
+        <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 max-h-[300px] overflow-y-auto transition-colors duration-150">
+          {verdict || isStreaming ? (
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
             <div className="space-y-4">
               <TestCaseProgress
                 passedTestCases={passedTestCases}
@@ -254,8 +271,13 @@ export default function ProblemDetailPage() {
               {failedTestCase && <DiffViewer failedTestCase={failedTestCase} />}
             </div>
           ) : (
+<<<<<<< HEAD
             <div className="font-jetbrains text-center text-xs text-zinc-500 py-3">
               Press <strong className="text-zinc-700 dark:text-zinc-300">Run Code</strong> (<kbd className="font-mono text-[0.65rem] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">Ctrl+Enter</kbd>) to evaluate sample cases, or <strong className="text-blue-600 dark:text-blue-400">Submit Solution</strong> (<kbd className="font-mono text-[0.65rem] bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded">Ctrl+Shift+Enter</kbd>) to run hidden test suite.
+=======
+            <div className="font-jetbrains text-center text-xs text-zinc-500 py-4">
+              Press <strong className="text-zinc-700 dark:text-zinc-300">Run Code</strong> to test sample cases, or <strong className="text-blue-600 dark:text-blue-400">Submit Solution</strong> to evaluate all test cases.
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
             </div>
           )}
         </div>

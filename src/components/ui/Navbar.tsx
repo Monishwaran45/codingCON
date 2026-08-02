@@ -130,6 +130,7 @@ export const Navbar: React.FC = () => {
   ];
 
   return (
+<<<<<<< HEAD
     <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md font-jetbrains transition-colors duration-150">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
         {/* Brand Header */}
@@ -144,12 +145,29 @@ export const Navbar: React.FC = () => {
             <span className="text-[0.62rem] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Exam Live
+=======
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
+        {/* Brand Header */}
+        <Link href="/" className="flex items-center gap-2.5">
+          <ButterflyLogo className="h-5.5 w-5.5 text-blue-600" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
+              CIT Chennai <span className="text-blue-500 font-extrabold">Test Platform</span>
+            </span>
+            <span className="text-[0.65rem] text-zinc-400 dark:text-zinc-500 font-normal border-l border-zinc-200 dark:border-zinc-800 pl-2">
+              College Portal
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
             </span>
           </div>
         </Link>
 
         {/* Navigation Bar */}
+<<<<<<< HEAD
         <nav className="flex items-center gap-1 border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-100/60 dark:bg-zinc-900/60 rounded-lg p-1">
+=======
+        <nav className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 rounded-md p-0.5">
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
           {navLinks.map((link, idx) => {
             const isActive =
               link.href === '/'
@@ -160,10 +178,17 @@ export const Navbar: React.FC = () => {
                 key={idx}
                 href={link.href}
                 className={cn(
+<<<<<<< HEAD
                   'text-xs font-semibold px-3 py-1 rounded-md transition-all duration-150',
                   isActive
                     ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50'
                     : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/40'
+=======
+                  'text-xs font-medium px-3 py-1 rounded transition-colors',
+                  isActive
+                    ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
+                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
                 )}
               >
                 {link.label}
@@ -172,6 +197,7 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
+<<<<<<< HEAD
         {/* User Profile Info & Search trigger */}
         <div className="flex items-center gap-2.5">
           {/* Ctrl+K Quick Command Button */}
@@ -193,10 +219,16 @@ export const Navbar: React.FC = () => {
 
           {themeToggleBtn}
 
+=======
+        {/* User Profile Info */}
+        <div className="flex items-center gap-3">
+          {themeToggleBtn}
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Link
                 href="/profile"
+<<<<<<< HEAD
                 className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -206,6 +238,16 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => logout()}
                 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 px-2 py-1 transition-colors"
+=======
+                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
+              >
+                <span className="font-mono text-zinc-700 dark:text-zinc-400">{user.username}</span>
+                <span className="text-[0.65rem] text-blue-500 dark:text-blue-400 font-semibold uppercase">{user.role}</span>
+              </Link>
+              <button
+                onClick={() => logout()}
+                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
               >
                 Log Out
               </button>
@@ -213,7 +255,11 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               href="/"
+<<<<<<< HEAD
               className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-md px-3.5 py-1.5 transition-colors shadow-sm"
+=======
+              className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
             >
               Sign In
             </Link>

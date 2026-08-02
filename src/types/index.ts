@@ -18,14 +18,14 @@ export interface User {
 }
 
 export interface TestCase {
-  id: string | number;
+  id: number;
   input: string;
   expectedOutput: string;
   isSample: boolean;
 }
 
 export interface TestCaseResult {
-  id: string | number;
+  id: number;
   passed: boolean;
   expectedOutput?: string;
   actualOutput?: string;
