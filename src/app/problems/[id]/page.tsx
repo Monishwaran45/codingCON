@@ -69,23 +69,23 @@ export default function ProblemDetailPage() {
   if (!problem) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
-        <p className="text-xs text-zinc-500 mb-4">The requested problem could not be found.</p>
-        <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Return to Problem Archive
+        <p className="text-xs text-slate-500 mb-4">The requested problem could not be found.</p>
+        <Link href="/problems" className="text-xs text-cyan-400 hover:underline">
+          Return to Problem Arena
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="flex h-[calc(100vh-50px)] w-full overflow-hidden bg-white dark:bg-zinc-950 transition-colors duration-150">
+    <div className="flex h-[calc(100vh-65px)] w-full overflow-hidden bg-slate-950">
       {/* Left Pane: Scrollable Problem Statement */}
-      <div className="w-1/2 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-y-auto">
+      <div className="w-1/2 border-r border-slate-800 bg-slate-950 overflow-y-auto">
         <ProblemStatement problem={problem} />
       </div>
 
       {/* Right Pane: Code Editor + Real-time Verdict Workspace */}
-      <div className="flex w-1/2 flex-col bg-zinc-50 dark:bg-zinc-900 transition-colors duration-150">
+      <div className="flex w-1/2 flex-col bg-slate-900">
         {/* Toolbar */}
         <EditorToolbar
           language={language}
@@ -103,7 +103,7 @@ export default function ProblemDetailPage() {
         </div>
 
         {/* Real-time Verdict Panel */}
-        <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 max-h-[300px] overflow-y-auto transition-colors duration-150">
+        <div className="border-t border-slate-800 bg-slate-950 p-4 max-h-[300px] overflow-y-auto">
           {verdict || isStreaming ? (
             <div className="space-y-4">
               <TestCaseProgress
@@ -126,8 +126,8 @@ export default function ProblemDetailPage() {
               {failedTestCase && <DiffViewer failedTestCase={failedTestCase} />}
             </div>
           ) : (
-            <div className="font-jetbrains text-center text-xs text-zinc-500 py-4">
-              Press <strong className="text-zinc-700 dark:text-zinc-300">Run Code</strong> to test sample cases, or <strong className="text-blue-600 dark:text-blue-400">Submit Solution</strong> to evaluate all test cases.
+            <div className="font-jetbrains text-center text-xs text-slate-500 py-4">
+              Press <strong className="text-slate-300">Run Code</strong> to test sample cases, or <strong className="text-cyan-400">Submit Solution</strong> to evaluate all test suites.
             </div>
           )}
         </div>

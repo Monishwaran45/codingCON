@@ -2,7 +2,8 @@
 
 @layer base {
   body {
-    @apply transition-colors duration-150;
+    background-color: #000000;
+    color: #ffffff;
   }
 }
 
@@ -12,11 +13,12 @@
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-zinc-100 dark:bg-zinc-950;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-300 dark:bg-zinc-800 rounded-[2px];
+  background: #27272a;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-zinc-500 dark:bg-zinc-100;
+  background: #ffffff;
 }
