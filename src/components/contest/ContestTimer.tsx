@@ -30,10 +30,10 @@ export const ContestTimer: React.FC = () => {
           ? 'border-red-500/50 bg-red-500/20 text-red-400 animate-pulse shadow-lg shadow-red-500/20'
           : isAmber
           ? 'border-amber-500/50 bg-amber-500/15 text-amber-400'
-          : 'border-slate-800 bg-slate-900/80 text-slate-300'
+          : 'border-zinc-800 bg-zinc-900/80 text-zinc-300'
       )}
     >
-      <span className="text-slate-500 font-normal">Ends in:</span>
+      <span className="text-zinc-500 font-normal">Ends in:</span>
       <span className="tracking-widest font-mono text-sm">{hrs}:{mins}:{secs}</span>
     </div>
   );
