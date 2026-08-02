@@ -75,6 +75,7 @@ export default function ProblemsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-6">
       {/* Header Banner */}
+<<<<<<< HEAD
       <div className="border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
           Assessment Resources
@@ -84,6 +85,17 @@ export default function ProblemsPage() {
         </h1>
         <p className="text-xs text-zinc-500 mt-1">
           Select allocated programming tasks below for practice or scheduled evaluations.
+=======
+      <div className="mb-8">
+        <div className="flex items-center gap-2 font-jetbrains text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider mb-1">
+          <span>Problem Archive</span>
+        </div>
+        <h1 className="font-jetbrains text-3xl font-extrabold text-zinc-900 dark:text-zinc-100 sm:text-4xl">
+          Problem Set
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          Choose a problem to begin your assessment. Your submission status is tracked automatically.
+>>>>>>> 1ac750ce303750f74a1d94c81eb62bf168acf045
         </p>
       </div>
 
@@ -103,11 +115,19 @@ export default function ProblemsPage() {
 
       {/* Problem High-Density List */}
       {hasError ? (
+<<<<<<< HEAD
         <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-12 text-center">
           <p className="text-xs text-red-500 dark:text-red-400 mb-3 font-semibold">Assessment server is currently unreachable.</p>
           <button
             onClick={() => retryLoad()}
             className="rounded border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+=======
+        <div className="rounded-md border border-red-200 dark:border-red-900/60 bg-red-50 dark:bg-red-950/20 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-red-600 dark:text-red-400 mb-3">Unable to connect to the problem server.</p>
+          <button
+            onClick={() => retryLoad()}
+            className="rounded-md border border-red-300 dark:border-red-500/40 bg-red-100 dark:bg-red-500/10 px-4 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/20 transition-colors"
+>>>>>>> 1ac750ce303750f74a1d94c81eb62bf168acf045
           >
             Retry Connection
           </button>
@@ -183,12 +203,21 @@ export default function ProblemsPage() {
           </table>
         </div>
       ) : problems.length === 0 ? (
+<<<<<<< HEAD
         <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/45 dark:bg-zinc-950/40 p-12 text-center">
           <p className="text-xs text-zinc-500">No problems are scheduled in the evaluation archive.</p>
         </div>
       ) : (
         <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/45 dark:bg-zinc-950/40 p-12 text-center">
           <p className="text-xs text-zinc-500 mb-2">No matching problems found.</p>
+=======
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/10 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-zinc-500">No problems available in the archive yet.</p>
+        </div>
+      ) : (
+        <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-12 text-center font-jetbrains transition-colors">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">No problems match your current filters.</p>
+>>>>>>> 1ac750ce303750f74a1d94c81eb62bf168acf045
           <button
             onClick={() => {
               setSearchQuery('');
