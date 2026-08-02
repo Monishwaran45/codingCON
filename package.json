@@ -1,0 +1,22 @@
+{
+  "name": "codingcon-frontend",
+  "version": "1.0.0",
+  "description": "Frontend workspace for codingCON - Competitive Coding & Contest Platform",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -s . -p 3000",
+    "dev": "npx serve -s . -p 3000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Monishwaran45/codingCON.git"
+  },
+  "keywords": [
+    "codingCON",
+    "competitive-programming",
+    "frontend",
+    "contest-arena"
+  ],
+  "author": "Monishwaran45",
+  "license": "ISC"
+}
