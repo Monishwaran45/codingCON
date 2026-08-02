@@ -10,7 +10,7 @@ import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
 
@@ -39,20 +39,29 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-8 font-jetbrains">
       {/* Profile Header */}
-      <div className="flex items-center gap-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 font-extrabold text-2xl text-white shadow-xl shadow-cyan-500/20">
-          {user.username[0].toUpperCase()}
+      <div className="flex items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950 p-6">
+        <div className="flex items-center gap-5">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 font-extrabold text-2xl text-white shadow-xl shadow-cyan-500/20">
+            {user.username[0].toUpperCase()}
+          </div>
+
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-extrabold text-white">{user.username}</h1>
+              <span className="rounded-full bg-cyan-500/20 px-3 py-0.5 text-xs font-bold text-cyan-400 border border-cyan-500/40">
+                Candidate Master
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">{user.email} • Role: {user.role}</p>
+          </div>
         </div>
 
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-extrabold text-slate-100">{user.username}</h1>
-            <span className="rounded-full bg-cyan-500/20 px-3 py-0.5 text-xs font-bold text-cyan-400 border border-cyan-500/40">
-              Candidate Master
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1">{user.email} • Role: {user.role}</p>
-        </div>
+        <button
+          onClick={() => logout()}
+          className="rounded-lg border border-red-900/60 bg-red-950/40 px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-900/40 hover:text-white transition-colors"
+        >
+          LOG OUT
+        </button>
       </div>
 
       {/* Stats Grid */}

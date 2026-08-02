@@ -8,11 +8,12 @@ import { cn } from '@/lib/utils';
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   const navLinks = [
     { href: '/problems', label: 'Problems' },
     { href: '/contest/c88', label: 'Contest' },
+    { href: '/admin/problems/new', label: '+ Upload Problem' },
     { href: '/profile', label: 'Profile' },
   ];
 
@@ -46,7 +47,7 @@ export const Navbar: React.FC = () => {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all duration-150',
+                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full transition-all duration-150',
                   isActive
                     ? 'bg-white text-black font-black shadow-md'
                     : 'text-zinc-400 hover:text-white'
@@ -61,22 +62,31 @@ export const Navbar: React.FC = () => {
         {/* User Profile / Auth Action */}
         <div className="flex items-center gap-3">
           {isAuthenticated && user ? (
-            <Link
-              href="/profile"
-              className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 hover:border-zinc-700 transition-colors"
-            >
-              <div className="font-jetbrains flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
-                {user.username[0].toUpperCase()}
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="font-jetbrains text-[0.7rem] font-bold text-white leading-none mb-0.5">
-                  {user.username}
-                </span>
-                <span className="font-jetbrains text-[0.62rem] text-cyan-400 font-extrabold leading-none">
-                  {user.rating} PTS
-                </span>
-              </div>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 hover:border-zinc-700 transition-colors"
+              >
+                <div className="font-jetbrains flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
+                  {user.username[0].toUpperCase()}
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="font-jetbrains text-[0.7rem] font-bold text-white leading-none mb-0.5">
+                    {user.username}
+                  </span>
+                  <span className="font-jetbrains text-[0.62rem] text-cyan-400 font-extrabold leading-none">
+                    {user.rating} PTS
+                  </span>
+                </div>
+              </Link>
+              <button
+                onClick={() => logout()}
+                className="font-jetbrains text-[0.68rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
+                title="Log Out"
+              >
+                LOG OUT
+              </button>
+            </div>
           ) : (
             <Link
               href="/"

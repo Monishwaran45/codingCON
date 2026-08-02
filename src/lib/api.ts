@@ -30,6 +30,33 @@ export const api = {
       return null;
     }
   },
+  createProblem: async (problemData: Partial<Problem>): Promise<Problem> => {
+    try {
+      return await fetcher<Problem>('/problems', {
+        method: 'POST',
+        body: JSON.stringify(problemData),
+      });
+    } catch {
+      // Local fallback for offline mode
+      const newProblem: Problem = {
+        id: 'p-' + Math.random().toString(36).substring(2, 7),
+        title: problemData.title || 'Untitled Problem',
+        slug: (problemData.title || 'untitled').toLowerCase().replace(/\s+/g, '-'),
+        difficulty: problemData.difficulty || 'medium',
+        points: problemData.points || 100,
+        timeLimitMs: problemData.timeLimitMs || 1000,
+        memoryLimitMb: problemData.memoryLimitMb || 256,
+        acceptanceRate: 0,
+        totalSubmissions: 0,
+        description: problemData.description || '',
+        inputFormat: problemData.inputFormat || '',
+        outputFormat: problemData.outputFormat || '',
+        sampleTestCases: problemData.sampleTestCases || [],
+        tags: problemData.tags || [],
+      };
+      return newProblem;
+    }
+  },
 
   // Contest
   getContest: async (id: string): Promise<Contest | null> => {

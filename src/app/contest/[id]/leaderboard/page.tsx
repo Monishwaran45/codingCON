@@ -8,11 +8,19 @@ import { ContestTimer } from '@/components/contest/ContestTimer';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useContestStore } from '@/store/useContestStore';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLeaderboardSocket } from '@/hooks/useSocket';
 
 export default function LeaderboardPage() {
   const { leaderboard, setLeaderboard } = useContestStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
+
+  // Subscribe to live WebSocket updates from the NestJS Leaderboard microservice
+  useLeaderboardSocket('c88', (updatedLeaderboard) => {
+    if (Array.isArray(updatedLeaderboard)) {
+      setLeaderboard(updatedLeaderboard);
+    }
+  });
 
   useEffect(() => {
     async function loadLeaderboard() {
