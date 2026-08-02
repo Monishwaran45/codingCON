@@ -90,9 +90,6 @@ export default function CreateProblemPage() {
           <span>Admin Portal</span>
         </div>
         <h1 className="text-3xl font-extrabold text-white">Upload New Problem Statement</h1>
-        <p className="text-xs text-zinc-500 mt-1">
-          Define problem statements, constraints, and testcase evaluation suites for 500+ competing students.
-        </p>
       </div>
 
       {successMessage && (
