@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Problem } from '@/types';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+<<<<<<< HEAD
 
+=======
+>>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
 
 
 export default function AdminDashboardPage() {

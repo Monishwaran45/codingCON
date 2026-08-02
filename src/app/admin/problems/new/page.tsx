@@ -10,7 +10,6 @@ export default function CreateProblemPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -23,15 +22,14 @@ export default function CreateProblemPage() {
   const [inputFormat, setInputFormat] = useState('');
   const [outputFormat, setOutputFormat] = useState('');
 
-  // Dynamic Test Cases with unique IDs
+  // Dynamic Test Cases
   const [testCases, setTestCases] = useState<TestCase[]>([]);
 
   const addTestCase = (isSample: boolean) => {
-    const newId = 'tc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
     setTestCases((prev) => [
       ...prev,
       {
-        id: newId,
+        id: prev.length + 1,
         input: '',
         expectedOutput: '',
         isSample,
@@ -53,41 +51,26 @@ export default function CreateProblemPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    // Strict Validation
-    if (!title.trim() || !description.trim()) {
-      setErrorMessage('Problem title and description are required.');
-      return;
-    }
-
-    if (points <= 0 || timeLimitMs < 50 || memoryLimitMb < 16) {
-      setErrorMessage('Numeric limits must be positive (Points >= 1, Time Limit >= 50ms, Memory Limit >= 16MB).');
-      return;
-    }
-
-    const tags = Array.from(
-      new Set(
-        tagsInput
-          .split(',')
-          .map((t) => t.trim().toLowerCase())
-          .filter((t) => t.length > 0)
-      )
-    );
+    if (!title || !description) return;
 
     setIsSubmitting(true);
+    setSuccessMessage('');
+
+    const tags = tagsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
 
     const problemData = {
-      title: title.trim(),
+      title,
       difficulty,
       points: Number(points),
       timeLimitMs: Number(timeLimitMs),
       memoryLimitMb: Number(memoryLimitMb),
       tags,
-      description: description.trim(),
-      inputFormat: inputFormat.trim(),
-      outputFormat: outputFormat.trim(),
+      description,
+      inputFormat,
+      outputFormat,
       sampleTestCases: testCases,
     };
 
