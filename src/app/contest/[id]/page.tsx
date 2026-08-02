@@ -2,32 +2,45 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Contest } from '@/types';
 import { api } from '@/lib/api';
 import { ContestBanner } from '@/components/contest/ContestBanner';
 import { AnnouncementFeed } from '@/components/contest/AnnouncementFeed';
 import { ProblemCard } from '@/components/problems/ProblemCard';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { useContestStore } from '@/store/useContestStore';
 
 export default function ContestPage() {
-  const [contest, setContest] = useState<Contest | null>(null);
+  const { contest, setContest } = useContestStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadContest() {
       setIsLoading(true);
       const data = await api.getContest('c88');
-      setContest(data);
+      if (data) {
+        setContest(data);
+      }
       setIsLoading(false);
     }
     loadContest();
-  }, []);
+  }, [setContest]);
 
-  if (isLoading || !contest) {
+  if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8">
         <SkeletonLoader count={1} className="h-44 w-full mb-6" />
         <SkeletonLoader count={4} className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!contest) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
+        <p className="text-xs text-slate-500 mb-4">No active contest found.</p>
+        <Link href="/problems" className="text-xs text-cyan-400 hover:underline">
+          Return to Problem Arena
+        </Link>
       </div>
     );
   }

@@ -30,16 +30,18 @@ export const StickyUserRow: React.FC<StickyUserRowProps> = ({ userRow, deltaPoin
         </div>
 
         {/* Proximity & Loss Aversion Framing */}
-        <div className="flex items-center gap-3">
-          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-right">
-            <span className="text-[0.65rem] uppercase text-amber-400 font-bold block">
-              Proximity Goal
-            </span>
-            <span className="text-xs text-amber-300 font-extrabold">
-              +{deltaPointsToPass} pts to pass rank #{userRow.rank - 1}
-            </span>
+        {deltaPointsToPass > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-right">
+              <span className="text-[0.65rem] uppercase text-amber-400 font-bold block">
+                Proximity Goal
+              </span>
+              <span className="text-xs text-amber-300 font-extrabold">
+                +{deltaPointsToPass} pts to pass rank #{userRow.rank - 1}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

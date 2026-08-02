@@ -2,25 +2,27 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LeaderboardEntry } from '@/types';
 import { api } from '@/lib/api';
 import { LeaderboardTable } from '@/components/leaderboard/LeaderboardTable';
 import { ContestTimer } from '@/components/contest/ContestTimer';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { useContestStore } from '@/store/useContestStore';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function LeaderboardPage() {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const { leaderboard, setLeaderboard } = useContestStore();
+  const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadLeaderboard() {
       setIsLoading(true);
       const data = await api.getLeaderboard('c88');
-      setEntries(data);
+      setLeaderboard(data);
       setIsLoading(false);
     }
     loadLeaderboard();
-  }, []);
+  }, [setLeaderboard]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -40,10 +42,14 @@ export default function LeaderboardPage() {
 
       {isLoading ? (
         <SkeletonLoader count={8} className="h-14 w-full mb-3" />
+      ) : leaderboard.length === 0 ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/10 p-12 text-center font-jetbrains">
+          <p className="text-xs text-slate-500">No leaderboard standings available yet.</p>
+        </div>
       ) : (
         <LeaderboardTable
-          entries={entries}
-          currentUserId="u3"
+          entries={leaderboard}
+          currentUserId={user?.id || ''}
           isFrozen={false}
         />
       )}

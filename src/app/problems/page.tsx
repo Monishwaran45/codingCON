@@ -99,9 +99,13 @@ export default function ProblemsPage() {
             <ProblemCard key={problem.id} problem={problem} />
           ))}
         </div>
+      ) : problems.length === 0 ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/10 p-12 text-center font-jetbrains">
+          <p className="text-xs text-slate-500">No problems available in the archive yet.</p>
+        </div>
       ) : (
         <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center font-jetbrains">
-          <p className="text-sm text-slate-400 mb-2">No problems match your current filters.</p>
+          <p className="text-xs text-slate-400 mb-2">No problems match your current filters.</p>
           <button
             onClick={() => {
               setSearchQuery('');

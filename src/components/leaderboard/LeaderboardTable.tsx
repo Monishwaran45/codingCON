@@ -18,7 +18,10 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentUserRow = entries.find((e) => e.userId === currentUserId) || entries[2];
+  const userIndex = entries.findIndex((e) => e.userId === currentUserId);
+  const currentUserRow = userIndex !== -1 ? entries[userIndex] : null;
+  const nextRankRow = userIndex > 0 ? entries[userIndex - 1] : null;
+  const deltaPointsToPass = (currentUserRow && nextRankRow) ? (nextRankRow.totalScore - currentUserRow.totalScore) : 0;
 
   const filteredEntries = entries
     .filter((e) => e.username.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -75,7 +78,7 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
       {currentUserRow && (
         <StickyUserRow
           userRow={currentUserRow}
-          deltaPointsToPass={170}
+          deltaPointsToPass={deltaPointsToPass}
         />
       )}
     </div>

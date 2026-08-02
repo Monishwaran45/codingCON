@@ -1,27 +1,29 @@
 import { create } from 'zustand';
 import { Contest, LeaderboardEntry } from '@/types';
-import { MOCK_CONTEST, MOCK_LEADERBOARD } from '@/mocks/leaderboard';
 
 interface ContestState {
   contest: Contest | null;
   leaderboard: LeaderboardEntry[];
   timeRemainingSeconds: number;
   userRank: number;
-  userDeltaScore: number; // "+2 pts to pass rank above"
+  userDeltaScore: number;
   isLeaderboardFrozen: boolean;
   announcements: { id: string; timestamp: string; message: string }[];
   updateTimer: () => void;
   filterLeaderboard: (query: string) => LeaderboardEntry[];
+  setContest: (contest: Contest) => void;
+  setLeaderboard: (leaderboard: LeaderboardEntry[]) => void;
+  setUserRankDetails: (rank: number, delta: number) => void;
 }
 
 export const useContestStore = create<ContestState>((set, get) => ({
-  contest: MOCK_CONTEST,
-  leaderboard: MOCK_LEADERBOARD,
-  timeRemainingSeconds: 5400, // 90 minutes
-  userRank: 3,
-  userDeltaScore: 170, // 2420 - 2250 = 170 pts to pass Benq
+  contest: null,
+  leaderboard: [],
+  timeRemainingSeconds: 0,
+  userRank: 0,
+  userDeltaScore: 0,
   isLeaderboardFrozen: false,
-  announcements: MOCK_CONTEST.announcements,
+  announcements: [],
   updateTimer: () => {
     set((state) => ({
       timeRemainingSeconds: Math.max(0, state.timeRemainingSeconds - 1),
@@ -33,5 +35,20 @@ export const useContestStore = create<ContestState>((set, get) => ({
     return list.filter((row) =>
       row.username.toLowerCase().includes(query.toLowerCase())
     );
+  },
+  setContest: (contest: Contest) => {
+    const seconds = Math.max(0, Math.floor((new Date(contest.endTime).getTime() - Date.now()) / 1000));
+    set({
+      contest,
+      timeRemainingSeconds: seconds,
+      isLeaderboardFrozen: !!contest.isLeaderboardFrozen,
+      announcements: contest.announcements,
+    });
+  },
+  setLeaderboard: (leaderboard: LeaderboardEntry[]) => {
+    set({ leaderboard });
+  },
+  setUserRankDetails: (rank: number, delta: number) => {
+    set({ userRank: rank, userDeltaScore: delta });
   },
 }));

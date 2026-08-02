@@ -1,26 +1,17 @@
 import { API_BASE_URL } from './constants';
-import { MOCK_PROBLEMS } from '@/mocks/problems';
-import { MOCK_LEADERBOARD, MOCK_CONTEST } from '@/mocks/leaderboard';
-import { MOCK_USER, MOCK_SUBMISSIONS } from '@/mocks/user';
 import { Problem, Contest, LeaderboardEntry, User, Submission } from '@/types';
 
 async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  try {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include', // JWT in httpOnly cookie
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    // Fallback to mock data gracefully when backend server is offline
-    console.warn(`[API] ${endpoint} request failed, using mock data fallback.`);
-    throw error;
-  }
+  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.json();
 }
 
 export const api = {
@@ -29,46 +20,46 @@ export const api = {
     try {
       return await fetcher<Problem[]>('/problems');
     } catch {
-      return MOCK_PROBLEMS;
+      return [];
     }
   },
-  getProblemById: async (id: string): Promise<Problem> => {
+  getProblemById: async (id: string): Promise<Problem | null> => {
     try {
       return await fetcher<Problem>(`/problems/${id}`);
     } catch {
-      return MOCK_PROBLEMS.find((p) => p.id === id) || MOCK_PROBLEMS[0];
+      return null;
     }
   },
 
   // Contest
-  getContest: async (id: string): Promise<Contest> => {
+  getContest: async (id: string): Promise<Contest | null> => {
     try {
       return await fetcher<Contest>(`/contest/${id}`);
     } catch {
-      return MOCK_CONTEST;
+      return null;
     }
   },
   getLeaderboard: async (contestId: string): Promise<LeaderboardEntry[]> => {
     try {
       return await fetcher<LeaderboardEntry[]>(`/leaderboard/${contestId}`);
     } catch {
-      return MOCK_LEADERBOARD;
+      return [];
     }
   },
 
   // User Profile & Submissions
-  getProfile: async (): Promise<User> => {
+  getProfile: async (): Promise<User | null> => {
     try {
       return await fetcher<User>('/profile');
     } catch {
-      return MOCK_USER;
+      return null;
     }
   },
   getSubmissions: async (): Promise<Submission[]> => {
     try {
       return await fetcher<Submission[]>('/submissions');
     } catch {
-      return MOCK_SUBMISSIONS;
+      return [];
     }
   },
 };

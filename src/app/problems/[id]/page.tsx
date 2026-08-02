@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Problem } from '@/types';
 import { api } from '@/lib/api';
@@ -46,10 +47,21 @@ export default function ProblemDetailPage() {
     loadProblem();
   }, [problemId, resetVerdict]);
 
-  if (isLoading || !problem) {
+  if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8">
         <SkeletonLoader count={1} className="h-[600px] w-full" />
+      </div>
+    );
+  }
+
+  if (!problem) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
+        <p className="text-xs text-slate-500 mb-4">The requested problem could not be found.</p>
+        <Link href="/problems" className="text-xs text-cyan-400 hover:underline">
+          Return to Problem Arena
+        </Link>
       </div>
     );
   }

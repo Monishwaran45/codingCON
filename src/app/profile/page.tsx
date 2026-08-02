@@ -1,34 +1,38 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { User, Submission } from '@/types';
+import Link from 'next/link';
+import { Submission } from '@/types';
 import { api } from '@/lib/api';
 import { StreakWidget } from '@/components/profile/StreakWidget';
 import { RatingGraph } from '@/components/profile/RatingGraph';
 import { StatsOverview } from '@/components/profile/StatsOverview';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, isAuthenticated } = useAuthStore();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
 
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      const [u, s] = await Promise.all([api.getProfile(), api.getSubmissions()]);
-      setUser(u);
+    async function loadSubmissions() {
+      if (!isAuthenticated) return;
+      setIsLoadingSubmissions(true);
+      const s = await api.getSubmissions();
       setSubmissions(s);
-      setIsLoading(false);
+      setIsLoadingSubmissions(false);
     }
-    loadData();
-  }, []);
+    loadSubmissions();
+  }, [isAuthenticated]);
 
-  if (isLoading || !user) {
+  if (!isAuthenticated || !user) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-8">
-        <SkeletonLoader count={1} className="h-44 w-full mb-6" />
-        <SkeletonLoader count={3} className="h-28 w-full" />
+      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
+        <p className="text-xs text-slate-500 mb-4">Please sign in to view your profile statistics.</p>
+        <a href="/" className="inline-block rounded-lg bg-cyan-500 px-6 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors">
+          Sign In
+        </a>
       </div>
     );
   }
