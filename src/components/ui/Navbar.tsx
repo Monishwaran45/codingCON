@@ -12,39 +12,44 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { href: '/problems', label: 'Problems' },
-    { href: '/contest/c88', label: 'Contest #88' },
+    { href: '/contest/c88', label: 'Contest' },
     { href: '/profile', label: 'Profile' },
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-900 bg-black">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="font-jetbrains flex items-center justify-center rounded bg-cyan-500/10 px-2 py-1 text-sm font-bold text-cyan-400 border border-cyan-500/30 group-hover:border-cyan-400 transition-colors">
-            &lt;/&gt;
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-zinc-800 shadow-[0_0_10px_rgba(255,255,255,0.05)] group-hover:scale-105 transition-transform duration-200">
+            <span className="font-jetbrains font-extrabold text-sm text-black">C</span>
           </div>
-          <span className="font-jetbrains text-lg font-extrabold tracking-tight text-slate-100">
-            coding<span className="text-cyan-400">CON</span>
-          </span>
-          <span className="font-jetbrains text-[0.65rem] font-semibold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse">
+          <div className="flex flex-col">
+            <span className="font-jetbrains text-sm font-extrabold tracking-wider text-white">
+              CODING<span className="text-cyan-400">CON</span>
+            </span>
+            <span className="text-[0.6rem] font-bold text-zinc-500 tracking-widest uppercase">
+              Arena
+            </span>
+          </div>
+          <span className="font-jetbrains text-[0.62rem] font-bold px-2 py-0.5 rounded bg-amber-400 text-black border border-amber-500 animate-pulse ml-1">
             LIVE
           </span>
         </Link>
 
         {/* Nav Links */}
-        <nav className="flex items-center gap-1 rounded-full bg-slate-900/60 p-1 border border-slate-800">
+        <nav className="flex items-center gap-1 rounded-full bg-zinc-950 p-1 border border-zinc-900">
           {navLinks.map((link) => {
-            const isActive = pathname.startsWith(link.href);
+            const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'font-jetbrains text-xs font-semibold px-4 py-1.5 rounded-full transition-all duration-150',
+                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all duration-150',
                   isActive
-                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-lg shadow-cyan-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-white text-black font-black shadow-md'
+                    : 'text-zinc-400 hover:text-white'
                 )}
               >
                 {link.label}
@@ -58,26 +63,26 @@ export const Navbar: React.FC = () => {
           {isAuthenticated && user ? (
             <Link
               href="/profile"
-              className="flex items-center gap-2.5 rounded-full border border-slate-800 bg-slate-900/80 py-1 pl-1.5 pr-3 hover:border-slate-700 transition-colors"
+              className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 hover:border-zinc-700 transition-colors"
             >
-              <div className="font-jetbrains flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-600 font-bold text-xs text-white">
+              <div className="font-jetbrains flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
                 {user.username[0].toUpperCase()}
               </div>
               <div className="flex flex-col text-left">
-                <span className="font-jetbrains text-xs font-semibold text-slate-200">
+                <span className="font-jetbrains text-[0.7rem] font-bold text-white leading-none mb-0.5">
                   {user.username}
                 </span>
-                <span className="font-jetbrains text-[0.65rem] text-cyan-400 font-medium">
-                  {user.rating} pts
+                <span className="font-jetbrains text-[0.62rem] text-cyan-400 font-extrabold leading-none">
+                  {user.rating} PTS
                 </span>
               </div>
             </Link>
           ) : (
             <Link
               href="/"
-              className="font-jetbrains text-xs font-semibold text-cyan-400 hover:underline"
+              className="font-jetbrains text-xs font-bold text-white border border-white rounded px-4 py-1.5 hover:bg-white hover:text-black transition-colors duration-150"
             >
-              Sign In
+              SIGN IN
             </Link>
           )}
         </div>

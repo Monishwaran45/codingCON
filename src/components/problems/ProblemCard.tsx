@@ -12,7 +12,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
   return (
     <Link
       href={`/problems/${problem.id}`}
-      className="group relative flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-900/60 p-5 hover:border-cyan-500/50 hover:bg-slate-900/90 transition-all duration-150 shadow-lg hover:shadow-cyan-500/5"
+      className="group relative flex flex-col justify-between rounded-xl border border-zinc-900 bg-zinc-950 p-5 hover:border-zinc-700 hover:bg-zinc-900/40 transition-all duration-150 shadow-md"
     >
       <div>
         {/* Top Header Row: Status icon + Title + Difficulty */}
@@ -21,19 +21,19 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
             {/* Zeigarnik Effect: Filled checkmark vs Empty circle directly on card */}
             <div
               className={cn(
-                'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-bold text-xs',
+                'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border font-bold text-xs font-jetbrains',
                 problem.isSolved
-                  ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-400'
+                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
                   : problem.isAttempted
                   ? 'border-amber-500/50 bg-amber-500/10 text-amber-400'
-                  : 'border-slate-700 bg-slate-800/50 text-slate-600'
+                  : 'border-zinc-800 bg-zinc-900/50 text-zinc-600'
               )}
               title={problem.isSolved ? 'Solved' : problem.isAttempted ? 'Attempted' : 'Unsolved'}
             >
               {problem.isSolved ? '✓' : problem.isAttempted ? '!' : '○'}
             </div>
 
-            <h3 className="font-jetbrains text-sm font-bold text-slate-100 group-hover:text-cyan-400 transition-colors">
+            <h3 className="font-jetbrains text-sm font-bold text-white transition-colors">
               {problem.title}
             </h3>
           </div>
@@ -46,7 +46,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
           {problem.tags.map((tag) => (
             <span
               key={tag}
-              className="font-jetbrains text-[0.65rem] text-slate-400 bg-slate-800/80 border border-slate-800 px-2 py-0.5 rounded-md"
+              className="font-jetbrains text-[0.65rem] text-zinc-400 bg-zinc-900/60 border border-zinc-800 px-2.5 py-0.5 rounded"
             >
               {tag}
             </span>
@@ -55,13 +55,13 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({ problem }) => {
       </div>
 
       {/* Footer Meta Row: Acceptance % + Points */}
-      <div className="flex items-center justify-between border-t border-slate-800/80 pt-3 text-xs text-slate-400 font-jetbrains">
+      <div className="flex items-center justify-between border-t border-zinc-900 pt-3 text-[0.7rem] text-zinc-500 font-jetbrains">
         <div className="flex items-center gap-1.5">
-          <span className="text-slate-500">Acceptance:</span>
-          <span className="font-semibold text-slate-200">{problem.acceptanceRate}%</span>
+          <span>Acceptance:</span>
+          <span className="font-bold text-zinc-300">{problem.acceptanceRate}%</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-cyan-400 font-semibold">+{problem.points} pts</span>
+          <span className="text-cyan-400 font-extrabold">+{problem.points} PTS</span>
         </div>
       </div>
     </Link>

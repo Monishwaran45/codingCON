@@ -2,23 +2,23 @@
 
 @layer base {
   body {
-    background-color: #020617;
-    color: #f8fafc;
+    background-color: #000000;
+    color: #ffffff;
   }
 }
 
-/* Custom Dark Theme Scrollbars */
+/* Custom High Contrast Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 4px;
+  background: #27272a;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #06b6d4;
+  background: #ffffff;
 }
