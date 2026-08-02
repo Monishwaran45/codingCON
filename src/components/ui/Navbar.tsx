@@ -13,7 +13,6 @@ export const Navbar: React.FC = () => {
   const navLinks = [
     { href: '/problems', label: 'Problems' },
     { href: '/contest/c88', label: 'Contest' },
-    { href: '/admin/problems/new', label: '+ Upload Problem' },
     { href: '/profile', label: 'Profile' },
   ];
 
@@ -33,9 +32,6 @@ export const Navbar: React.FC = () => {
               Arena
             </span>
           </div>
-          <span className="font-jetbrains text-[0.62rem] font-bold px-2 py-0.5 rounded bg-amber-400 text-black border border-amber-500 animate-pulse ml-1">
-            LIVE
-          </span>
         </Link>
 
         {/* Nav Links */}
@@ -47,7 +43,7 @@ export const Navbar: React.FC = () => {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-full transition-all duration-150',
+                  'font-jetbrains text-[0.7rem] font-bold uppercase tracking-wider px-4 py-1.5 rounded-full transition-all duration-150',
                   isActive
                     ? 'bg-white text-black font-black shadow-md'
                     : 'text-zinc-400 hover:text-white'
@@ -59,29 +55,41 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* User Profile / Auth Action */}
-        <div className="flex items-center gap-3">
+        {/* User Profile & Admin Actions */}
+        <div className="flex items-center gap-2.5 font-jetbrains">
+          <Link
+            href="/admin"
+            className={cn(
+              'text-[0.68rem] font-bold border px-3 py-1.5 rounded-lg transition-colors',
+              pathname.startsWith('/admin')
+                ? 'border-cyan-400 bg-cyan-500/10 text-cyan-400'
+                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:text-white hover:border-zinc-700'
+            )}
+          >
+            ⚙️ Admin Panel
+          </Link>
+
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">
               <Link
                 href="/profile"
                 className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 hover:border-zinc-700 transition-colors"
               >
-                <div className="font-jetbrains flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-purple-500 font-bold text-xs text-white">
                   {user.username[0].toUpperCase()}
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="font-jetbrains text-[0.7rem] font-bold text-white leading-none mb-0.5">
+                  <span className="text-[0.7rem] font-bold text-white leading-none mb-0.5">
                     {user.username}
                   </span>
-                  <span className="font-jetbrains text-[0.62rem] text-cyan-400 font-extrabold leading-none">
+                  <span className="text-[0.62rem] text-cyan-400 font-extrabold leading-none">
                     {user.rating} PTS
                   </span>
                 </div>
               </Link>
               <button
                 onClick={() => logout()}
-                className="font-jetbrains text-[0.68rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
+                className="text-[0.68rem] font-bold text-red-400 hover:text-red-300 border border-red-900/60 bg-red-950/40 rounded-lg px-2.5 py-1.5 transition-colors"
                 title="Log Out"
               >
                 LOG OUT
@@ -90,7 +98,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               href="/"
-              className="font-jetbrains text-xs font-bold text-white border border-white rounded px-4 py-1.5 hover:bg-white hover:text-black transition-colors duration-150"
+              className="text-xs font-bold text-white border border-white rounded px-4 py-1.5 hover:bg-white hover:text-black transition-colors duration-150"
             >
               SIGN IN
             </Link>

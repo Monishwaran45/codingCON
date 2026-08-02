@@ -14,9 +14,12 @@ export default function LandingPage() {
           <p className="text-zinc-400 text-xs tracking-wider uppercase font-jetbrains">
             Competitive Programming Arena
           </p>
-          <p className="text-xs text-zinc-500 leading-relaxed max-w-md">
-            Evaluate code in real-time, compete in live dynamic contests, and track your metrics. Clean, minimalist, and pure.
-          </p>
+          <blockquote className="border-l-2 border-cyan-500/60 pl-3.5 italic text-xs text-zinc-400 max-w-md leading-relaxed font-jetbrains">
+            &ldquo;First, solve the problem. Then, write the code.&rdquo;
+            <footer className="text-[0.65rem] text-cyan-400 font-bold not-italic mt-1">
+              — John Johnson
+            </footer>
+          </blockquote>
         </div>
 
         {/* Quick Access Boxes with vibrant matching/contrasting colors */}
