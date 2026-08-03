@@ -8,6 +8,20 @@ import { useContestStore } from '@/store/useContestStore';
 import { api } from '@/lib/api';
 import { Submission } from '@/types';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { motion } from 'framer-motion';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
 
 export default function StudentDashboardPage() {
   const { user, isAuthenticated } = useAuthStore();
@@ -23,15 +37,10 @@ export default function StudentDashboardPage() {
       }
       setIsLoading(true);
       try {
-        // Fetch active contest c88 by default as the official examination round
         const activeContest = await api.getContest('c88');
-        if (activeContest) {
-          setContest(activeContest);
-        }
-        
-        // Fetch student's recent submissions
+        if (activeContest) setContest(activeContest);
         const userSubmissions = await api.getSubmissions();
-        setSubmissions(userSubmissions.slice(0, 5)); // show latest 5
+        setSubmissions(userSubmissions.slice(0, 5));
       } catch (error) {
         console.error('Failed to load dashboard data:', error);
       } finally {
@@ -41,337 +50,218 @@ export default function StudentDashboardPage() {
     loadDashboardData();
   }, [isAuthenticated, setContest]);
 
-  // Unauthenticated View: Clean, official college gate
+  // ── Unauthenticated: Login Gate ─────────────────────────────────────────
   if (!isAuthenticated || !user) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-12 min-h-[calc(100vh-65px)] font-jetbrains">
-        {/* Left Column: Official Assessment Instructions */}
-        <div className="flex-1 space-y-6 max-w-xl">
-          <div className="space-y-2">
-            <span className="text-[0.65rem] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest">
-              Official Examination Portal
-            </span>
-            <h1 className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
-              College Programming Assessment System
-            </h1>
-          </div>
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 font-inter relative overflow-hidden">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-16 min-h-[calc(100vh-100px)] relative z-10">
+          {/* Left: Information */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex-1 space-y-8 max-w-xl"
+          >
+            <div>
+              <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.15]">
+                CIT Assessment{' '}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">System</span>
+              </h1>
+              <p className="text-[0.9rem] text-zinc-500 dark:text-zinc-400 mt-5 leading-relaxed max-w-md">
+                Internal coding assessment platform for Chennai Institute of Technology. Sign in to access contests, solve problems, and track your progress.
+              </p>
+            </div>
 
-          <div className="border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 rounded-md p-5 space-y-4">
-            <h3 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-              Candidate Instructions
-            </h3>
-            <ul className="text-xs text-zinc-600 dark:text-zinc-400 space-y-2.5 list-disc list-inside">
-              <li>Enter your registered college email to receive login credentials.</li>
-              <li>Assessment sessions are scheduled and monitored by course faculty.</li>
-              <li>Unauthorized browser tab switching may result in session termination.</li>
-              <li>Ensure steady internet connectivity before starting any scheduled round.</li>
-            </ul>
-          </div>
-<<<<<<< HEAD
-        </div>
+            <div className="space-y-3 pt-2">
+              {[
+                { label: 'Curated problem sets from past assessments and competitive practice' },
+                { label: 'Real-time code evaluation with instant verdicts' },
+                { label: 'Live leaderboards and performance tracking' },
+              ].map(({ label }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <svg className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">{label}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-        {/* Right Column: Auth Sign In Gate */}
-        <div className="w-full md:w-auto flex justify-center">
-          <AuthForm />
+          {/* Right: Sign In */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.5, delay: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+            className="w-full md:w-[420px] flex justify-center"
+          >
+            <div className="w-full relative">
+              <div className="relative glass-panel rounded-2xl p-1 shadow-xl">
+                <AuthForm />
+              </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     );
   }
 
-  // Authenticated View: Professional Developer Dashboard
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-8">
-      {/* Welcome & Overview Header */}
-      <div className="border-b border-zinc-200/80 dark:border-zinc-800/80 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[0.62rem] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
-              Candidate Console
-            </span>
-            <span className="text-[0.62rem] font-semibold text-zinc-400">
-              Department of CSE / IT
-            </span>
+  // Admin redirect hint
+  if (user.role === 'admin' || user.role === 'problem_setter') {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 font-inter text-center relative">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="max-w-md mx-auto space-y-6 glass-panel p-10 rounded-2xl"
+        >
+          <div className="text-5xl mb-4 animate-bounce">👋</div>
+          <div>
+            <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white mb-2">
+              Welcome, {user.username}
+            </h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+              You are signed in as <strong className="text-blue-600 dark:text-blue-400">{user.role}</strong>. Please head to the Admin Console to manage problems and monitor active contests.
+            </p>
           </div>
-          <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:scale-105 font-bold text-sm px-6 py-3.5 transition-all shadow-lg"
+          >
+            Open Admin Dashboard →
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // ── Authenticated Student Dashboard ────────────────────────────────────
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-inter space-y-8">
+      {/* Welcome Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 pb-6 border-b border-zinc-200/50 dark:border-zinc-800/50"
+      >
+        <div>
+          <span className="text-[0.62rem] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-2">
+            Student Console
+          </span>
+          <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
             Welcome back, {user.username}
           </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Roll / Student ID: <span className="font-mono text-zinc-700 dark:text-zinc-300 font-semibold">{user.id || 'CIT-2026-088'}</span> | Status: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Active Session</span>
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/problems"
-            className="rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 shadow-sm transition-all flex items-center gap-1.5"
-          >
-            <span>Solve Problems</span>
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </Link>
-        </div>
-      </div>
-
-      {/* Analytical Metric Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/40 p-4 transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Overall Rating
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-extrabold font-mono text-blue-600 dark:text-blue-400">
-              {user.rating || 1250} <span className="text-xs font-normal text-zinc-400">PTS</span>
+          <div className="flex items-center gap-4 mt-3 text-xs">
+            <span className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
+              Rating: <strong className="font-mono text-zinc-900 dark:text-zinc-100">{user.rating || 1500}</strong>
             </span>
-            <span className="text-[0.65rem] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              Top 5%
+            <span className="px-2.5 py-1 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 font-semibold">
+              Solved: {user.solvedCount || 0}
             </span>
           </div>
         </div>
+        <Link
+          href="/problems"
+          className="group rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-2.5 shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 hover:-translate-y-0.5"
+        >
+          Explore Problems
+          <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </Link>
+      </motion.div>
 
-        <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/40 p-4 transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Problems Solved
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-extrabold font-mono text-zinc-900 dark:text-white">
-              {user.solvedCount || 14} <span className="text-xs font-normal text-zinc-400">/ 25</span>
-            </span>
-            <span className="text-[0.65rem] text-blue-600 dark:text-blue-400 font-bold">
-              56%
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/40 p-4 transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Accuracy Rate
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
-              88.4%
-            </span>
-            <span className="text-[0.65rem] text-zinc-400 font-mono">
-              22 AC
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/60 dark:bg-zinc-900/40 p-4 transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-          <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
-            Global Rank
-          </span>
-          <div className="flex items-baseline justify-between">
-            <span className="text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
-              #12
-            </span>
-            <span className="text-[0.65rem] text-zinc-400">
-              out of 450
-            </span>
-          </div>
-        </div>
-      </div>
-
-=======
-        </div>
-
-        {/* Right Column: Auth Sign In Gate */}
-        <div className="w-full md:w-auto flex justify-center">
-          <AuthForm />
-        </div>
-      </div>
-    );
-  }
-
-  // Authenticated View: Distraction-free Student Dashboard
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-8">
-      {/* Welcome Header */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <span className="text-[0.65rem] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider block mb-1">
-            Student Assessment Console
-          </span>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Welcome back, {user.username}</h1>
-          <p className="text-xs text-zinc-500 mt-1">
-            Course Role: <span className="text-zinc-650 dark:text-zinc-300 uppercase">{user.role}</span> | College Portal Session Active
-          </p>
-        </div>
-        <div className="text-left sm:text-right">
-          <span className="text-[0.65rem] text-zinc-500 uppercase block">Active Course Rating</span>
-          <span className="text-sm font-bold text-blue-500 dark:text-blue-400">{user.rating} PTS</span>
-        </div>
-      </div>
-
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
       {isLoading ? (
-        <SkeletonLoader count={3} className="h-28 w-full" />
+        <SkeletonLoader count={3} className="h-28 w-full rounded-2xl" />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Column: Active & Upcoming Contests */}
-          <div className="lg:col-span-2 space-y-6">
-            <div>
-<<<<<<< HEAD
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Active Examination Session
-                </h3>
-                <span className="text-[0.65rem] text-blue-600 dark:text-blue-400 font-mono font-bold">
-                  Scheduled by Faculty
-                </span>
-              </div>
-
-              {contest ? (
-                <div className="rounded-xl border border-blue-500/30 dark:border-blue-800/50 bg-blue-500/[0.02] dark:bg-blue-950/[0.15] p-5 space-y-4 shadow-sm">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 uppercase tracking-widest inline-flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
-                          LIVE ASSESSMENT
-                        </span>
-                        <span className="text-xs font-mono text-zinc-500">
-                          ID: {contest.id}
-                        </span>
-                      </div>
-                      <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{contest.title}</h4>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        Mandatory internal assessment. Ensure all code solutions pass sample test cases before final submission.
-=======
-              <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Active Assessment Session
+          {/* Main Column */}
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="lg:col-span-2 space-y-8">
+            
+            {/* Active Contest Banner */}
+            <motion.div variants={itemVariants}>
+              <h3 className="text-[0.65rem] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3 px-1">
+                Active Session
               </h3>
               {contest ? (
-                <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-5 space-y-4">
-                  <div className="flex items-start justify-between">
+                <div className="relative group overflow-hidden rounded-2xl border border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 p-6 transition-all hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-transparent blur-3xl group-hover:scale-110 transition-transform" />
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div>
-                      <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 uppercase tracking-widest inline-block mb-2">
-                        LIVE EXAM
-                      </span>
-                      <h4 className="text-md font-bold text-zinc-800 dark:text-zinc-100">{contest.title}</h4>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        Ensure all answers are submitted before the timer expires.
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[0.62rem] font-bold px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                          </span>
+                          LIVE
+                        </span>
+                        <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/50 px-2 rounded">{contest.id}</span>
+                      </div>
+                      <h4 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">{contest.title}</h4>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {contest.problems.length} challenges · Ends at {new Date(contest.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
-                  </div>
-
-<<<<<<< HEAD
-                  <div className="pt-3 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800/80">
-                    <div className="flex items-center gap-4 text-xs font-mono text-zinc-600 dark:text-zinc-400">
-                      <span>Problems: <strong className="text-zinc-900 dark:text-zinc-200">{contest.problems.length}</strong></span>
-                      <span>Time Remaining: <strong className="text-blue-600 dark:text-blue-400">01:45:20</strong></span>
-                    </div>
                     <Link
                       href={`/contest/${contest.id}`}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-500 transition-colors shadow-sm"
+                      className="rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-6 py-3 text-xs font-bold hover:scale-105 transition-transform shadow-lg whitespace-nowrap text-center"
                     >
-                      Enter Assessment Arena →
-=======
-                  <div className="pt-2 flex items-center justify-between border-t border-zinc-200 dark:border-zinc-900">
-                    <span className="text-xs text-zinc-650 dark:text-zinc-400">
-                      Problems Allocated: <strong className="text-zinc-800 dark:text-zinc-200">{contest.problems.length}</strong>
-                    </span>
-                    <Link
-                      href={`/contest/${contest.id}`}
-                      className="rounded bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-colors"
-                    >
-                      Enter Assessment
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+                      Enter Arena
                     </Link>
                   </div>
                 </div>
               ) : (
-<<<<<<< HEAD
-                <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40 p-6 text-center">
-=======
-                <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/40 dark:bg-zinc-950/40 p-6 text-center">
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-                  <p className="text-xs text-zinc-500">No active assessments are currently running.</p>
+                <div className="glass-panel rounded-2xl p-8 text-center border-dashed">
+                  <p className="text-xs text-zinc-500">No active assessments scheduled right now.</p>
+                  <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-2 inline-block font-semibold">
+                    Sharpen your skills in the Problem Archive →
+                  </Link>
                 </div>
               )}
-            </div>
+            </motion.div>
 
-<<<<<<< HEAD
-            {/* Recent Submissions Table */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Recent Code Submissions
+            {/* Recent Submissions */}
+            <motion.div variants={itemVariants}>
+              <div className="flex items-center justify-between mb-3 px-1">
+                <h3 className="text-[0.65rem] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  Recent Activity
                 </h3>
-                <Link href="/profile" className="text-[0.65rem] font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                  View Full History →
+                <Link href="/profile" className="text-[0.65rem] font-bold text-zinc-500 hover:text-blue-600 transition-colors">
+                  View All →
                 </Link>
               </div>
 
-              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs font-jetbrains">
-                  <thead className="border-b border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
-                    <tr>
-                      <th className="py-3 px-4">Problem Name</th>
-                      <th className="py-3 px-4">Language</th>
-                      <th className="py-3 px-4 text-center">Runtime</th>
-                      <th className="py-3 px-4 text-center">Verdict</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
-                    {submissions.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-8 text-center text-zinc-500 text-xs">
-                          No recent submissions logged.
-=======
-            {/* Recent Assessments / Submissions */}
-            <div>
-              <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Recent Submissions
-              </h3>
-              <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
+              <div className="glass-panel rounded-2xl overflow-hidden">
                 <table className="w-full text-left text-xs">
-                  <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
+                  <thead className="border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-900/30 text-zinc-500 dark:text-zinc-400 uppercase text-[0.6rem] tracking-wider">
                     <tr>
-                      <th className="py-2.5 px-4">Problem</th>
-                      <th className="py-2.5 px-4">Language</th>
-                      <th className="py-2.5 px-4 text-center">Verdict</th>
+                      <th className="py-3.5 px-5 font-semibold">Problem</th>
+                      <th className="py-3.5 px-5 font-semibold">Language</th>
+                      <th className="py-3.5 px-5 text-center font-semibold">Runtime</th>
+                      <th className="py-3.5 px-5 text-right font-semibold">Verdict</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900/60">
                     {submissions.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-6 text-center text-zinc-500 text-xs">
-                          No recent submissions found.
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+                        <td colSpan={4} className="py-10 text-center text-zinc-500 bg-zinc-50/20 dark:bg-zinc-950/20">
+                          No submissions yet. Time to write some code!
                         </td>
                       </tr>
                     ) : (
                       submissions.map((sub) => (
-<<<<<<< HEAD
-                        <tr key={sub.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-zinc-900 dark:text-zinc-100">
-                            {sub.problemTitle}
+                        <tr key={sub.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition-colors group cursor-default">
+                          <td className="py-3.5 px-5 font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{sub.problemTitle}</td>
+                          <td className="py-3.5 px-5 text-zinc-500 font-mono text-[0.65rem]">{sub.language}</td>
+                          <td className="py-3.5 px-5 text-center font-mono text-zinc-500 text-[0.65rem]">
+                            {sub.executionTimeMs || '—'} ms
                           </td>
-                          <td className="py-3 px-4 text-zinc-500 font-mono text-[0.7rem] uppercase">
-                            {sub.language}
-                          </td>
-                          <td className="py-3 px-4 text-center font-mono text-zinc-500 text-[0.7rem]">
-                            {sub.executionTimeMs || 12} ms
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <span
-                              className={`font-bold px-2 py-0.5 rounded text-[0.62rem] uppercase tracking-wider ${
-=======
-                        <tr key={sub.id} className="border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-900/30">
-                          <td className="py-2.5 px-4 font-semibold text-zinc-800 dark:text-zinc-200">{sub.problemTitle}</td>
-                          <td className="py-2.5 px-4 text-zinc-500 font-mono">{sub.language}</td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span
-                              className={`font-bold px-2 py-0.5 rounded text-[0.62rem] ${
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-                                sub.verdict === 'AC'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-red-500/10 text-red-500 dark:text-red-400 border border-red-500/20'
-                              }`}
-                            >
-                              {sub.verdict === 'AC' ? 'ACCEPTED' : 'WRONG ANSWER'}
+                          <td className="py-3.5 px-5 text-right">
+                            <span className={`font-bold px-2 py-0.5 rounded text-[0.62rem] tracking-wider border ${
+                              sub.verdict === 'AC'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                                : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                            }`}>
+                              {sub.verdict === 'AC' ? 'Accepted' : sub.verdict}
                             </span>
                           </td>
                         </tr>
@@ -380,64 +270,51 @@ export default function StudentDashboardPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
-<<<<<<< HEAD
-          {/* Sidebar: Announcements & Guidelines */}
-=======
-          {/* Sidebar: Announcements */}
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
-                Official Announcements
+          {/* Sidebar */}
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-8">
+            {/* Announcements */}
+            <motion.div variants={itemVariants}>
+              <h3 className="text-[0.65rem] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3 px-1">
+                Announcements
               </h3>
-<<<<<<< HEAD
-              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-950 p-4 space-y-4 max-h-[350px] overflow-y-auto shadow-sm">
+              <div className="glass-panel rounded-2xl p-5 space-y-4 max-h-[340px] overflow-y-auto">
                 {contest?.announcements && contest.announcements.length > 0 ? (
-                  contest.announcements.map((ann) => (
-                    <div key={ann.id} className="border-b border-zinc-200/60 dark:border-zinc-900 pb-3 last:border-0 last:pb-0">
-                      <span className="text-[0.6rem] font-mono text-blue-500 block mb-1">
-                        📢 Announcement • {new Date(ann.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed font-sans">{ann.message}</p>
-=======
-              <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 space-y-4 max-h-[350px] overflow-y-auto">
-                {contest?.announcements && contest.announcements.length > 0 ? (
-                  contest.announcements.map((ann) => (
-                    <div key={ann.id} className="border-b border-zinc-100 dark:border-zinc-900 pb-3 last:border-0 last:pb-0">
-                      <span className="text-[0.6rem] text-zinc-400 dark:text-zinc-500 block mb-1">
+                  [...contest.announcements].reverse().map((ann) => (
+                    <div key={ann.id} className="relative pl-4 border-l-2 border-blue-500/30 dark:border-blue-500/50 pb-4 last:pb-0">
+                      <div className="absolute -left-[5px] top-1 w-2 h-2 rounded-full bg-blue-500 ring-4 ring-white dark:ring-zinc-950" />
+                      <span className="text-[0.6rem] font-mono text-zinc-400 block mb-1.5">
                         {new Date(ann.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{ann.message}</p>
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+                      <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed font-sans">{ann.message}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-zinc-500 text-center py-4">No new announcements posted.</p>
+                  <p className="text-xs text-zinc-500 text-center py-6 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">No recent broadcasts.</p>
                 )}
               </div>
-            </div>
-<<<<<<< HEAD
+            </motion.div>
 
-            {/* Quick Rules Box */}
-            <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900/30 p-4 space-y-3">
-              <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                Exam Security Protocol
-              </h4>
-              <ul className="text-xs text-zinc-500 dark:text-zinc-400 space-y-2 list-disc list-inside">
-                <li>Automated anti-plagiarism scanning active.</li>
-                <li>Monaco IDE tracks keystrokes & execution logs.</li>
-                <li>Submit before the timer hits 00:00:00.</li>
-              </ul>
-            </div>
-=======
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-          </div>
+            {/* Quick Links */}
+            <motion.div variants={itemVariants} className="glass-panel rounded-2xl p-5 space-y-3">
+              <h4 className="text-[0.65rem] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Quick Navigate</h4>
+              {[
+                { href: '/problems', label: 'Problem Archive', icon: '📁' },
+                { href: contest ? `/contest/${contest.id}` : '/problems', label: 'Active Contest', icon: '🔥' },
+                { href: `/contest/c88/leaderboard`, label: 'Live Leaderboard', icon: '🏆' },
+                { href: '/profile', label: 'My Submissions', icon: '📜' },
+              ].map(({ href, label, icon }) => (
+                <Link key={href} href={href} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-xs text-zinc-700 dark:text-zinc-300 font-semibold transition-colors group">
+                  <span className="text-sm grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all">{icon}</span>
+                  <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400">{label}</span>
+                </Link>
+              ))}
+            </motion.div>
+          </motion.div>
         </div>
       )}
     </div>
   );
 }
-

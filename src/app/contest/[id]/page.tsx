@@ -7,8 +7,28 @@ import { ContestBanner } from '@/components/contest/ContestBanner';
 import { AnnouncementFeed } from '@/components/contest/AnnouncementFeed';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useContestStore } from '@/store/useContestStore';
+import { motion } from 'framer-motion';
 
 import { useParams } from 'next/navigation';
+
+const DIFF_STYLES: Record<string, string> = {
+  easy: 'text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+  medium: 'text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30',
+  hard: 'text-red-700 dark:text-red-400 bg-red-500/10 border-red-500/30',
+};
+
+const tableVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.06 }
+  }
+};
+
+const rowVariants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+};
 
 export default function ContestPage() {
   const params = useParams();
@@ -36,93 +56,182 @@ export default function ContestPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <SkeletonLoader count={1} className="h-44 w-full mb-6" />
-        <SkeletonLoader count={4} className="h-32 w-full" />
+        <SkeletonLoader count={1} className="h-32 w-full mb-6 rounded-xl" />
+        <SkeletonLoader count={4} className="h-20 w-full rounded-xl" />
       </div>
     );
   }
 
   if (!contest) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
-        <p className="text-xs text-zinc-500 mb-4">No active contest found.</p>
-        <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
-          Return to Problem Archive
-        </Link>
+      <div className="mx-auto max-w-md px-4 py-24 text-center font-inter">
+        <div className="glass-panel rounded-2xl p-10 space-y-4">
+          <div className="text-3xl">📋</div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 font-medium">No active contest found for this session.</p>
+          <Link href="/problems" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+            Browse Problem Archive
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
+          </Link>
+        </div>
       </div>
     );
   }
 
+  const isEnded = new Date(contest.endTime) < new Date();
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-jetbrains space-y-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-inter space-y-6">
+      {/* Page Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+        className="pb-2"
+      >
+        <span className="text-[0.62rem] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-2">
+          Contest Session · CIT Assessment System
+        </span>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 dark:text-white tracking-tight mb-1">
+          {contest.title}
+        </h1>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          {isEnded
+            ? 'This contest has ended. All problems are now available in the Problem Archive for practice.'
+            : `${contest.problems.length} problems · ${contest.durationMinutes} minutes · Solve and submit before time runs out.`
+          }
+        </p>
+      </motion.div>
+
       {/* Contest Banner */}
-      <ContestBanner contest={contest} />
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <ContestBanner contest={contest} />
+      </motion.div>
 
       {/* Navigation tabs */}
       <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-3">
-        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-3 -mb-3">
-          Assessment Problems ({contest.problems.length})
+        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-3 -mb-3">
+          Problems ({contest.problems.length})
         </span>
         <Link
           href={`/contest/${contest.id}/leaderboard`}
-          className="text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 pb-3 -mb-3 transition-colors"
+          className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 pb-3 -mb-3 transition-colors"
         >
-          Live Standings 🏆
+          Standings
         </Link>
       </div>
 
       {/* Announcements */}
-      <div className="mb-6">
-        <AnnouncementFeed announcements={contest.announcements} />
-      </div>
+      {contest.announcements && contest.announcements.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <AnnouncementFeed announcements={contest.announcements} />
+        </motion.div>
+      )}
 
-      {/* Contest Problem Set High-Density Table */}
-      <div className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden transition-colors">
-        <table className="w-full text-left text-xs">
-          <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100/60 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
-            <tr>
-              <th className="py-3 px-4">Problem Name</th>
-              <th className="py-3 px-4 text-center">Difficulty</th>
-              <th className="py-3 px-4 text-center">Max Score</th>
-              <th className="py-3 px-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contest.problems.map((problem) => {
-              const diffLabels = {
-                easy: { text: 'EASY', color: 'text-emerald-600 dark:text-emerald-400' },
-                medium: { text: 'MEDIUM', color: 'text-amber-600 dark:text-amber-400' },
-                hard: { text: 'HARD', color: 'text-red-650 dark:text-red-400' },
-              };
-              const spec = diffLabels[problem.difficulty] || diffLabels.medium;
-
-              return (
-                <tr key={problem.id} className="border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
-                  <td className="py-3 px-4 font-semibold text-zinc-800 dark:text-zinc-200">
-                    {problem.title}
+      {/* Contest Problem Set */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="glass-panel rounded-xl overflow-hidden">
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-zinc-200/50 dark:border-zinc-800/50 bg-zinc-50/80 dark:bg-zinc-900/40 text-zinc-500 dark:text-zinc-400 uppercase text-[0.62rem] tracking-wider">
+              <tr>
+                <th className="py-3.5 px-5 font-semibold w-12">#</th>
+                <th className="py-3.5 px-5 font-semibold">Problem</th>
+                <th className="py-3.5 px-5 text-center font-semibold">Difficulty</th>
+                <th className="py-3.5 px-5 text-center font-semibold">Points</th>
+                <th className="py-3.5 px-5 text-right font-semibold">Action</th>
+              </tr>
+            </thead>
+            <motion.tbody
+              variants={tableVariants}
+              initial="hidden"
+              animate="show"
+              className="divide-y divide-zinc-100 dark:divide-zinc-900/60"
+            >
+              {contest.problems.map((problem, idx) => (
+                <motion.tr
+                  key={problem.id}
+                  variants={rowVariants}
+                  className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors group"
+                >
+                  <td className="py-4 px-5 font-mono text-zinc-400 dark:text-zinc-500 text-[0.7rem]">
+                    {String(idx + 1).padStart(2, '0')}
                   </td>
-                  <td className="py-3 px-4 text-center">
-                    <span className={`text-[0.65rem] font-bold ${spec.color}`}>
-                      {spec.text}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center font-mono text-zinc-700 dark:text-zinc-300">
-                    {problem.points}
-                  </td>
-                  <td className="py-3 px-4 text-right">
+                  <td className="py-4 px-5">
                     <Link
                       href={`/problems/${problem.id}`}
-                      className="inline-block rounded bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-1 text-[0.68rem] font-semibold text-zinc-650 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                      className="font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
                     >
-                      Solve Challenge
+                      {problem.title}
+                    </Link>
+                    {problem.tags && problem.tags.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {problem.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="text-[0.58rem] font-mono text-zinc-400 dark:text-zinc-500 bg-zinc-100/80 dark:bg-zinc-800/50 px-1.5 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="py-4 px-5 text-center align-middle">
+                    <span className={`inline-block text-[0.62rem] font-bold px-2.5 py-1 rounded-md border ${DIFF_STYLES[problem.difficulty] || DIFF_STYLES.medium}`}>
+                      {problem.difficulty.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="py-4 px-5 text-center align-middle font-mono font-semibold text-zinc-700 dark:text-zinc-300">
+                    {problem.points}
+                  </td>
+                  <td className="py-4 px-5 text-right align-middle">
+                    <Link
+                      href={`/problems/${problem.id}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100 group-hover:bg-blue-600 group-hover:text-white transition-all"
+                    >
+                      {isEnded ? 'Practice' : 'Solve'}
+                      <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                      </svg>
                     </Link>
                   </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                </motion.tr>
+              ))}
+            </motion.tbody>
+          </table>
+        </div>
+      </motion.div>
+
+      {/* Post-contest archive notice */}
+      {isEnded && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="text-center py-6"
+        >
+          <Link
+            href="/problems"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            View all problems in the archive
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </Link>
+        </motion.div>
+      )}
     </div>
   );
 }

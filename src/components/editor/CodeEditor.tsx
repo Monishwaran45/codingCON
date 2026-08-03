@@ -8,7 +8,7 @@ interface CodeEditorProps {
   height?: string;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ height = 'calc(100vh - 360px)' }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%' }) => {
   const { language, code, setCode, autosave } = useEditorStore();
 
   // Periodic silent background autosave
@@ -20,7 +20,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = 'calc(100vh - 3
   }, [autosave]);
 
   return (
-    <div className="w-full bg-[#0d131f] border-b border-zinc-800">
+    <div className="w-full h-full bg-[#1e1e1e]">
       <Editor
         height={height}
         language={language === 'cpp' ? 'cpp' : language}
@@ -28,16 +28,43 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = 'calc(100vh - 3
         value={code}
         onChange={(value) => setCode(value || '')}
         options={{
-          fontSize: 13,
-          fontFamily: 'var(--font-jetbrains), Fira Code, monospace',
+          fontSize: 14,
+          fontFamily: 'var(--font-jetbrains), "JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, monospace',
+          fontLigatures: true,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           automaticLayout: true,
-          padding: { top: 12, bottom: 12 },
+          padding: { top: 16, bottom: 16 },
           lineNumbersMinChars: 3,
           cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: 'on',
           smoothScrolling: true,
+          renderLineHighlight: 'line',
+          renderWhitespace: 'none',
+          wordWrap: 'off',
+          tabSize: 4,
+          bracketPairColorization: { enabled: true },
+          guides: {
+            bracketPairs: true,
+            indentation: true,
+          },
+          scrollbar: {
+            verticalScrollbarSize: 8,
+            horizontalScrollbarSize: 8,
+            verticalSliderSize: 8,
+          },
         }}
+        loading={
+          <div className="flex items-center justify-center h-full bg-[#1e1e1e]">
+            <div className="flex items-center gap-3 text-zinc-500 text-xs font-mono">
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Loading editor...
+            </div>
+          </div>
+        }
       />
     </div>
   );

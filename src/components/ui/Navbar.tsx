@@ -5,113 +5,98 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
 import { cn } from '@/lib/utils';
-import { useContestStore } from '@/store/useContestStore';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const ButterflyLogo: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 10C12 7 9.5 3 6.5 3 4 3 2 5 2 7.5c0 3.5 3 5.5 6 5.5.8 0 1.5-.2 2.2-.6L12 10z" opacity="0.9" />
-    <path d="M12 10c0-3 2.5-7 5.5-7 2.5 0 4.5 2 4.5 4.5 0 3.5-3 5.5-6 5.5-.8 0-1.5-.2-2.2-.6L12 10z" opacity="0.9" />
-    <path d="M12 12c-.7.6-1.4 1-2.2 1-2 0-3.8-1.5-3.8-3.5 0-1.5 1-2.5 2.2-2.5 1.5 0 3.3 2 3.8 5z" opacity="0.75" />
-    <path d="M12 12c.7.6 1.4 1 2.2 1 2 0 3.8-1.5 3.8-3.5 0-1.5-1-2.5-2.2-2.5-1.5 0-3.3 2-3.8 5z" opacity="0.75" />
-    <path d="M11.5 5c0-.3.2-.5.5-.5s.5.2.5.5v12c0 .3-.2.5-.5.5s-.5-.2-.5-.5V5z" />
-    <path d="M12 5c-.3-.3-.8-1-1.5-1.2-.3-.1-.5-.4-.4-.7.1-.3.4-.5.7-.4C11.8 3 12.3 3.8 12.5 4.2c.2-.4.7-1.2 1.7-1.5.3-.1.6.1.7.4s-.1.6-.4.7c-.7.2-1.2.9-1.5 1.2" />
+const LogoIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
+  <svg className={className} viewBox="0 0 32 32" fill="none">
+    <rect width="32" height="32" rx="8" fill="url(#brandGradient)" />
+    <path d="M8 22L14 10L20 18L24 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="24" cy="12" r="2.5" fill="white" />
+    <defs>
+      <linearGradient id="brandGradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#2563EB" />
+        <stop offset="1" stopColor="#4F46E5" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { contest } = useContestStore();
-
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
-    const timer = setTimeout(() => {
-      setTheme(isDark ? 'dark' : 'light');
-    }, 0);
-    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(isDark ? 'dark' : 'light');
   }, []);
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(nextTheme);
-    if (nextTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', nextTheme);
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+    localStorage.setItem('theme', next);
   };
 
-  const themeToggleBtn = (
-    <button
-      onClick={toggleTheme}
-      className="flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-850 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-      aria-label="Toggle theme"
-    >
-      {theme === 'light' ? (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      ) : (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
-        </svg>
-      )}
-    </button>
-  );
+  const isAdmin = user?.role === 'admin' || user?.role === 'problem_setter';
 
-  // Admin Portal Header
+  // ── Admin Portal Header ───────────────────────────────────────────────────
   if (pathname.startsWith('/admin')) {
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
-          <Link href="/admin" className="flex items-center gap-2 group">
-            <ButterflyLogo className="h-5 w-5 text-blue-600" />
-            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
-              CIT Chennai Admin <span className="text-zinc-400 dark:text-zinc-500">| College</span>
+      <header className="sticky top-0 z-40 w-full glass-panel border-x-0 border-t-0 font-inter">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 h-14 sm:px-6">
+          <Link href="/admin" className="flex items-center gap-2.5 group">
+            <div className="transition-transform group-hover:scale-105">
+              <LogoIcon className="h-6 w-6 shadow-md shadow-blue-500/20 rounded-lg" />
+            </div>
+            <span className="text-[0.9rem] font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+              CodingCON <span className="text-gradient">Admin</span>
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
-            <Link
-              href="/admin"
-              className={cn(
-                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors',
-                pathname === '/admin'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              )}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/admin/problems/new"
-              className={cn(
-                'text-xs font-semibold px-3 py-1.5 rounded-md transition-colors',
-                pathname === '/admin/problems/new'
-                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              )}
-            >
-              + Create Problem
-            </Link>
+          <nav className="flex items-center gap-2">
+            {[
+              { href: '/admin', label: 'Dashboard', exact: true },
+              { href: '/admin/problems/new', label: '+ New Problem' },
+            ].map(({ href, label, exact }) => {
+              const active = exact ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="relative px-3 py-1.5 text-xs font-semibold rounded-md transition-colors"
+                >
+                  <span className={cn("relative z-10", active ? "text-blue-700 dark:text-blue-300" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100")}>
+                    {label}
+                  </span>
+                  {active && (
+                    <motion.div
+                      layoutId="adminNavIndicator"
+                      className="absolute inset-0 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 rounded-md"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </Link>
+              );
+            })}
+            <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-2" />
             <Link
               href="/problems"
-              className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 px-3 py-1.5 transition-colors"
+              className="text-xs font-semibold text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors flex items-center gap-1 group"
             >
-              Student Portal →
+              Student View 
+              <span className="transition-transform group-hover:translate-x-0.5">→</span>
             </Link>
           </nav>
 
-          <div className="flex items-center gap-2.5">
-            {themeToggleBtn}
+          <div className="flex items-center gap-3">
+            <ThemeButton theme={theme} onToggle={toggleTheme} />
             <button
               onClick={() => logout()}
-              className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 rounded-md px-3 py-1.5 transition-colors"
+              className="text-xs font-bold text-zinc-500 hover:text-red-500 transition-colors"
             >
-              Log Out
+              Log out
             </button>
           </div>
         </div>
@@ -119,147 +104,104 @@ export const Navbar: React.FC = () => {
     );
   }
 
-  // Student Navigation — Exactly 5 Items
-  const contestPath = contest?.id ? `/contest/${contest.id}` : '/contest/active';
-  const navLinks = [
-    { href: '/', label: 'Dashboard' },
-    { href: contestPath, label: 'Contests' },
+  // ── Student / Public Header ───────────────────────────────────────────────
+  const studentLinks = [
+    { href: '/', label: 'Home', exact: true },
     { href: '/problems', label: 'Problems' },
-    { href: '/profile', label: 'Submissions' },
+    { href: '/contest/c88', label: 'Contest' },
     { href: '/profile', label: 'Profile' },
   ];
 
   return (
-<<<<<<< HEAD
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 dark:border-zinc-800/80 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md font-jetbrains transition-colors duration-150">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
-        {/* Brand Header */}
+    <header className="sticky top-0 z-40 w-full glass-panel border-x-0 border-t-0 font-inter">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 h-14 sm:px-6">
+        {/* Brand */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="p-1 rounded bg-blue-50 dark:bg-blue-950/50 border border-blue-200/50 dark:border-blue-800/50 group-hover:scale-105 transition-transform">
-            <ButterflyLogo className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="transition-transform group-hover:scale-105">
+            <LogoIcon className="h-6 w-6 shadow-md shadow-blue-500/20 rounded-lg" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 tracking-wider uppercase">
-              CIT Chennai <span className="text-blue-600 dark:text-blue-400 font-black">CodingCON</span>
-            </span>
-            <span className="text-[0.62rem] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Exam Live
-=======
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-jetbrains transition-colors duration-150">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
-        {/* Brand Header */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <ButterflyLogo className="h-5.5 w-5.5 text-blue-600" />
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-wide uppercase">
-              CIT Chennai <span className="text-blue-500 font-extrabold">Test Platform</span>
-            </span>
-            <span className="text-[0.65rem] text-zinc-400 dark:text-zinc-500 font-normal border-l border-zinc-200 dark:border-zinc-800 pl-2">
-              College Portal
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-            </span>
-          </div>
+          <span className="text-[0.9rem] font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+            Coding<span className="text-gradient">CON</span>
+          </span>
         </Link>
 
-        {/* Navigation Bar */}
-<<<<<<< HEAD
-        <nav className="flex items-center gap-1 border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-100/60 dark:bg-zinc-900/60 rounded-lg p-1">
-=======
-        <nav className="flex items-center gap-1 border border-zinc-200 dark:border-zinc-800/80 bg-zinc-50 dark:bg-zinc-900/60 rounded-md p-0.5">
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-          {navLinks.map((link, idx) => {
-            const isActive =
-              link.href === '/'
-                ? pathname === '/'
-                : pathname === link.href || pathname.startsWith(link.href + '/');
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center gap-2">
+          {studentLinks.map(({ href, label, exact }) => {
+            const active = exact ? pathname === href : pathname === href || pathname.startsWith(href + '/');
             return (
               <Link
-                key={idx}
-                href={link.href}
-                className={cn(
-<<<<<<< HEAD
-                  'text-xs font-semibold px-3 py-1 rounded-md transition-all duration-150',
-                  isActive
-                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/50 dark:border-zinc-700/50'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-200/40 dark:hover:bg-zinc-800/40'
-=======
-                  'text-xs font-medium px-3 py-1 rounded transition-colors',
-                  isActive
-                    ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-semibold'
-                    : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-                )}
+                key={href}
+                href={href}
+                className="relative px-3 py-1.5 text-xs font-semibold rounded-md transition-colors group"
               >
-                {link.label}
+                <span className={cn("relative z-10 transition-colors", active ? "text-blue-700 dark:text-blue-300" : "text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-100")}>
+                  {label}
+                </span>
+                {active && (
+                  <motion.div
+                    layoutId="navIndicator"
+                    className="absolute inset-0 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800/50 rounded-md"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                {!active && (
+                  <div className="absolute inset-0 bg-zinc-100 dark:bg-zinc-800/50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
               </Link>
             );
           })}
+          
+          {isAdmin && (
+            <>
+              <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800 mx-1" />
+              <Link
+                href="/admin"
+                className="relative px-3 py-1.5 text-xs font-semibold rounded-md transition-colors text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-transparent hover:border-amber-200 dark:hover:border-amber-900/50"
+              >
+                Admin
+              </Link>
+            </>
+          )}
         </nav>
 
-<<<<<<< HEAD
-        {/* User Profile Info & Search trigger */}
-        <div className="flex items-center gap-2.5">
-          {/* Ctrl+K Quick Command Button */}
+        {/* Right side */}
+        <div className="flex items-center gap-3">
+          {/* Ctrl+K Search */}
           <button
-            onClick={() => {
-              const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true });
-              window.dispatchEvent(event);
-            }}
-            className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-xs text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
+            className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-all hover:shadow-sm"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>Search...</span>
-            <kbd className="text-[0.6rem] font-mono border border-zinc-200 dark:border-zinc-700 rounded px-1 py-0.2 bg-zinc-100 dark:bg-zinc-800">
-              Ctrl K
-            </kbd>
+            <span>Search</span>
+            <kbd className="text-[0.6rem] bg-zinc-100/80 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded px-1 text-zinc-500 font-mono">⌘K</kbd>
           </button>
 
-          {themeToggleBtn}
+          <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
 
-=======
-        {/* User Profile Info */}
-        <div className="flex items-center gap-3">
-          {themeToggleBtn}
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+          <ThemeButton theme={theme} onToggle={toggleTheme} />
+
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-1">
               <Link
                 href="/profile"
-<<<<<<< HEAD
-                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs text-zinc-700 dark:text-zinc-200 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
+                className="flex items-center gap-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
               >
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="font-semibold">{user.username}</span>
-                <span className="text-[0.6rem] text-blue-500 dark:text-blue-400 font-bold uppercase tracking-wider">{user.role}</span>
+                <div className="relative">
+                  <span className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-white text-[0.65rem] flex items-center justify-center font-bold shadow-md shadow-blue-500/20 ring-2 ring-transparent group-hover:ring-blue-200 dark:group-hover:ring-blue-900/50 transition-all">
+                    {user.username.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white dark:border-zinc-950"></span>
+                </div>
+                <span className="hidden sm:block">{user.username}</span>
               </Link>
-              <button
-                onClick={() => logout()}
-                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 px-2 py-1 transition-colors"
-=======
-                className="flex items-center gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:border-zinc-350 dark:hover:border-zinc-700 transition-colors"
-              >
-                <span className="font-mono text-zinc-700 dark:text-zinc-400">{user.username}</span>
-                <span className="text-[0.65rem] text-blue-500 dark:text-blue-400 font-semibold uppercase">{user.role}</span>
-              </Link>
-              <button
-                onClick={() => logout()}
-                className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
-              >
-                Log Out
-              </button>
             </div>
           ) : (
             <Link
               href="/"
-<<<<<<< HEAD
-              className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-md px-3.5 py-1.5 transition-colors shadow-sm"
-=======
-              className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-md px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
->>>>>>> f4ea211f46724849dff0a0455c065cbfa4e882f5
+              className="text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 px-4 py-1.5 rounded-lg transition-all shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-0.5"
             >
               Sign In
             </Link>
@@ -270,3 +212,36 @@ export const Navbar: React.FC = () => {
   );
 };
 
+const ThemeButton: React.FC<{ theme: 'light' | 'dark'; onToggle: () => void }> = ({ theme, onToggle }) => (
+  <button
+    onClick={onToggle}
+    aria-label="Toggle theme"
+    className="flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-colors"
+  >
+    <AnimatePresence mode="wait" initial={false}>
+      {theme === 'light' ? (
+        <motion.svg
+          key="light"
+          initial={{ opacity: 0, rotate: -45 }}
+          animate={{ opacity: 1, rotate: 0 }}
+          exit={{ opacity: 0, rotate: 45 }}
+          transition={{ duration: 0.2 }}
+          className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </motion.svg>
+      ) : (
+        <motion.svg
+          key="dark"
+          initial={{ opacity: 0, rotate: -45 }}
+          animate={{ opacity: 1, rotate: 0 }}
+          exit={{ opacity: 0, rotate: 45 }}
+          transition={{ duration: 0.2 }}
+          className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+        </motion.svg>
+      )}
+    </AnimatePresence>
+  </button>
+);

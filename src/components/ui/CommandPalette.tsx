@@ -33,6 +33,7 @@ export const CommandPalette: React.FC = () => {
     if (isOpen) {
       api.getProblems().then(setProblems).catch(console.error);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuery('');
       setSelectedIndex(0);
     }
