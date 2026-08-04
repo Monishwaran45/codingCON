@@ -29,15 +29,9 @@ export default function ProfilePage() {
 
   if (!isAuthenticated || !user) {
     return (
-<<<<<<< HEAD
-      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
-        <p className="text-xs text-slate-500 mb-4">Please sign in to view your profile statistics.</p>
-        <Link href="/" className="inline-block rounded-lg bg-cyan-500 px-6 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors">
-=======
       <div className="mx-auto max-w-md px-4 py-16 text-center font-inter">
         <p className="text-xs text-zinc-500 mb-4">Please sign in to view your profile.</p>
         <Link href="/" className="inline-block rounded-md bg-blue-600 px-5 py-2 text-xs font-semibold text-white hover:bg-blue-500 transition-colors">
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
           Sign In
         </Link>
       </div>

@@ -1,8 +1,16 @@
-// Environment driven API gateway URL
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api';
+// API base URL.
+// • In development the Next.js rewrite proxy forwards /api/* → backend, so
+//   the relative default works without any CORS configuration.
+// • Override with NEXT_PUBLIC_API_BASE_URL when deploying to a separate host.
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 
-// Environment driven WebSocket gateway URL
-export const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_BASE_URL || 'ws://localhost:4000';
+// WebSocket URL.
+// • Empty string → socket.io-client connects to the same origin (works through
+//   the Next.js rewrite proxy).
+// • Override with NEXT_PUBLIC_WS_BASE_URL for a separately hosted backend.
+export const WS_BASE_URL =
+  process.env.NEXT_PUBLIC_WS_BASE_URL ?? '';
 
 // Fixed UX convention for problem difficulty badges
 export const DIFFICULTY_COLORS = {

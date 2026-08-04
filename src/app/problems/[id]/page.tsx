@@ -116,13 +116,6 @@ export default function ProblemDetailPage() {
 
   if (!problem) {
     return (
-<<<<<<< HEAD
-      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
-        <p className="text-xs text-slate-500 mb-4">The requested problem could not be found.</p>
-        <Link href="/problems" className="text-xs text-cyan-400 hover:underline">
-          Return to Problem Arena
-        </Link>
-=======
       <div className="mx-auto max-w-md px-4 py-24 text-center font-inter">
         <div className="glass-panel rounded-2xl p-10 space-y-4">
           <div className="text-3xl">📋</div>
@@ -133,22 +126,11 @@ export default function ProblemDetailPage() {
             Return to Archive
           </Link>
         </div>
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
       </div>
     );
   }
 
   return (
-<<<<<<< HEAD
-    <div className="flex h-[calc(100vh-65px)] w-full overflow-hidden bg-slate-950">
-      {/* Left Pane: Scrollable Problem Statement */}
-      <div className="w-1/2 border-r border-slate-800 bg-slate-950 overflow-y-auto">
-        <ProblemStatement problem={problem} />
-      </div>
-
-      {/* Right Pane: Code Editor + Real-time Verdict Workspace */}
-      <div className="flex w-1/2 flex-col bg-slate-900">
-=======
     <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
       {/* ── Left Pane: Tabbed Problem Workspace ─────────────────────────── */}
       <div className="w-1/2 flex flex-col border-r border-zinc-200/60 dark:border-zinc-800/60 bg-white dark:bg-zinc-950 min-w-0">
@@ -235,7 +217,6 @@ export default function ProblemDetailPage() {
 
       {/* ── Right Pane: Editor + Verdict ─────────────────────────────────── */}
       <div className="flex w-1/2 flex-col bg-zinc-50 dark:bg-zinc-950 min-w-0">
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
         {/* Toolbar */}
         <div className="shrink-0">
           <EditorToolbar
@@ -254,18 +235,6 @@ export default function ProblemDetailPage() {
           <CodeEditor height="100%" />
         </div>
 
-<<<<<<< HEAD
-        {/* Real-time Verdict Panel */}
-        <div className="border-t border-slate-800 bg-slate-950 p-4 max-h-[300px] overflow-y-auto">
-          {verdict || isStreaming ? (
-            <div className="space-y-4">
-              <TestCaseProgress
-                passedTestCases={passedTestCases}
-                totalTestCases={totalTestCases}
-                results={testCaseResults}
-                isStreaming={isStreaming}
-              />
-=======
         {/* Resizable Verdict / Test Panel */}
         <div
           className="shrink-0 border-t border-zinc-200/60 dark:border-zinc-800/60 bg-white dark:bg-zinc-950 overflow-hidden flex flex-col"
@@ -279,7 +248,6 @@ export default function ProblemDetailPage() {
               isResizing && "bg-blue-500/40"
             )}
           />
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
 
           {/* Panel header tabs */}
           <div className="flex items-center gap-1 border-b border-zinc-100 dark:border-zinc-900 px-3 py-1.5 shrink-0">
@@ -319,17 +287,6 @@ export default function ProblemDetailPage() {
                   results={testCaseResults}
                   isStreaming={isStreaming}
                 />
-<<<<<<< HEAD
-              )}
-
-              {failedTestCase && <DiffViewer failedTestCase={failedTestCase} />}
-            </div>
-          ) : (
-            <div className="font-jetbrains text-center text-xs text-slate-500 py-4">
-              Press <strong className="text-slate-300">Run Code</strong> to test sample cases, or <strong className="text-cyan-400">Submit Solution</strong> to evaluate all test suites.
-            </div>
-          )}
-=======
                 {verdict && verdict !== 'running' && (
                   <VerdictBanner
                     verdict={verdict}
@@ -352,7 +309,6 @@ export default function ProblemDetailPage() {
               </div>
             )}
           </div>
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
         </div>
       </div>
     </div>

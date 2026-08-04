@@ -19,24 +19,24 @@ export const AuthForm: React.FC = () => {
       setLocalError('Email is required.');
       return;
     }
+    if (!password.trim()) {
+      setLocalError('Password is required.');
+      return;
+    }
 
     try {
       await login(email.trim(), password);
 
-      // Check if login was successful before navigating
-      const { user, isAuthenticated } = useAuthStore.getState();
-      if (!isAuthenticated || !user) {
-        setLocalError('Login failed. Please check your credentials.');
-        return;
-      }
-
-      if (user.role === 'admin' || user.role === 'problem_setter') {
+      const { user } = useAuthStore.getState();
+      if (user?.role === 'admin' || user?.role === 'problem_setter') {
         router.push('/admin');
       } else {
         router.push('/problems');
       }
-    } catch {
-      setLocalError('An error occurred during sign in. Please try again.');
+    } catch (err: unknown) {
+      // error is already set in useAuthStore by the login action
+      const message = err instanceof Error ? err.message : 'Sign in failed. Please try again.';
+      setLocalError(message);
     }
   };
 
@@ -117,8 +117,7 @@ export const AuthForm: React.FC = () => {
         {/* Footer note */}
         <div className="px-6 pb-5">
           <p className="text-[0.65rem] text-zinc-400 text-center leading-relaxed">
-            Demo access: use <code className="font-mono bg-zinc-100 dark:bg-zinc-900 px-1 rounded text-zinc-600 dark:text-zinc-300">admin@cit.edu</code>
-            {' '}or any email to sign in.
+            Use your CIT college email and password to sign in.
           </p>
         </div>
       </div>

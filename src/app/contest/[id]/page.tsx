@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { ContestBanner } from '@/components/contest/ContestBanner';
 import { AnnouncementFeed } from '@/components/contest/AnnouncementFeed';
-import { ProblemCard } from '@/components/problems/ProblemCard';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useContestStore } from '@/store/useContestStore';
 import { motion } from 'framer-motion';
@@ -28,7 +27,7 @@ const tableVariants = {
 
 const rowVariants = {
   hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+  show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } },
 };
 
 export default function ContestPage() {
@@ -65,13 +64,6 @@ export default function ContestPage() {
 
   if (!contest) {
     return (
-<<<<<<< HEAD
-      <div className="mx-auto max-w-md px-4 py-16 text-center font-jetbrains">
-        <p className="text-xs text-slate-500 mb-4">No active contest found.</p>
-        <Link href="/problems" className="text-xs text-cyan-400 hover:underline">
-          Return to Problem Arena
-        </Link>
-=======
       <div className="mx-auto max-w-md px-4 py-24 text-center font-inter">
         <div className="glass-panel rounded-2xl p-10 space-y-4">
           <div className="text-3xl">📋</div>
@@ -81,7 +73,6 @@ export default function ContestPage() {
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg>
           </Link>
         </div>
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
       </div>
     );
   }
@@ -89,9 +80,6 @@ export default function ContestPage() {
   const isEnded = new Date(contest.endTime) < new Date();
 
   return (
-<<<<<<< HEAD
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-=======
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-inter space-y-6">
       {/* Page Header */}
       <motion.div
@@ -114,7 +102,6 @@ export default function ContestPage() {
         </p>
       </motion.div>
 
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
       {/* Contest Banner */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -125,17 +112,6 @@ export default function ContestPage() {
       </motion.div>
 
       {/* Navigation tabs */}
-<<<<<<< HEAD
-      <div className="flex items-center gap-4 mb-6 font-jetbrains border-b border-slate-800 pb-3">
-        <span className="text-sm font-bold text-cyan-400 border-b-2 border-cyan-400 pb-3 -mb-3">
-          Contest Problems ({contest.problems.length})
-        </span>
-        <Link
-          href={`/contest/${contest.id}/leaderboard`}
-          className="text-sm font-bold text-slate-400 hover:text-slate-200 pb-3 -mb-3 transition-colors"
-        >
-          Live Leaderboard 🏆
-=======
       <div className="flex items-center gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-3">
         <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-3 -mb-3">
           Problems ({contest.problems.length})
@@ -145,23 +121,10 @@ export default function ContestPage() {
           className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 pb-3 -mb-3 transition-colors"
         >
           Standings
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
         </Link>
       </div>
 
       {/* Announcements */}
-<<<<<<< HEAD
-      <div className="mb-8">
-        <AnnouncementFeed announcements={contest.announcements} />
-      </div>
-
-      {/* Contest Problem Set */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
-        {contest.problems.map((problem) => (
-          <ProblemCard key={problem.id} problem={problem} />
-        ))}
-      </div>
-=======
       {contest.announcements && contest.announcements.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -269,7 +232,6 @@ export default function ContestPage() {
           </Link>
         </motion.div>
       )}
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
     </div>
   );
 }

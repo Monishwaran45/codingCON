@@ -17,17 +17,6 @@ export const ContestBanner: React.FC<ContestBannerProps> = ({ contest }) => {
   });
 
   return (
-<<<<<<< HEAD
-    <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md shadow-xl font-jetbrains mb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-cyan-400 uppercase tracking-wider mb-1">
-            <span>OFFICIAL CONTEST</span>
-            <span>•</span>
-            <span className="text-slate-400">{contest.participantCount.toLocaleString()} Participants</span>
-          </div>
-          <h1 className="text-2xl font-extrabold text-slate-100 sm:text-3xl">
-=======
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 font-inter transition-colors duration-150">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
@@ -48,7 +37,6 @@ export const ContestBanner: React.FC<ContestBannerProps> = ({ contest }) => {
             <span className="text-[0.7rem] text-zinc-400 dark:text-zinc-500">{startDate}</span>
           </div>
           <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
             {contest.title}
           </h1>
           <div className="flex items-center gap-4 text-[0.7rem] text-zinc-500 dark:text-zinc-400">

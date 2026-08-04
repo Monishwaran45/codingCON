@@ -42,11 +42,7 @@ export default function LeaderboardPage() {
   }, [contestId, setLeaderboard]);
 
   return (
-<<<<<<< HEAD
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-=======
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-inter space-y-6">
->>>>>>> f4becec8226ca9317ff9585eedcc5ba1074cda1d
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
