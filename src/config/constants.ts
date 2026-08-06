@@ -10,7 +10,7 @@ export const API_BASE_URL =
 //   the Next.js rewrite proxy).
 // • Override with NEXT_PUBLIC_WS_BASE_URL for a separately hosted backend.
 export const WS_BASE_URL =
-  process.env.NEXT_PUBLIC_WS_BASE_URL ?? '';
+  process.env.NEXT_PUBLIC_WS_BASE_URL ?? 'http://localhost:4000';
 
 // Fixed UX convention for problem difficulty badges
 export const DIFFICULTY_COLORS = {

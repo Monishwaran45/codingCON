@@ -3,9 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from 'next-themes';
 
 const LogoIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
   <svg className={className} viewBox="0 0 32 32" fill="none">
@@ -23,21 +24,19 @@ const LogoIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) =
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuthStore();
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const { user, isAuthenticated, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(isDark ? 'dark' : 'light');
+    setMounted(true);
   }, []);
 
   const toggleTheme = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-    localStorage.setItem('theme', next);
+    setTheme(theme === 'light' ? 'dark' : 'light');
   };
+
+  const currentTheme = mounted ? (theme as 'light' | 'dark') : 'dark';
 
   const isAdmin = user?.role === 'admin' || user?.role === 'problem_setter';
 
@@ -91,7 +90,7 @@ export const Navbar: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
-            <ThemeButton theme={theme} onToggle={toggleTheme} />
+            <ThemeButton theme={currentTheme} mounted={mounted} onToggle={toggleTheme} />
             <button
               onClick={() => logout()}
               className="text-xs font-bold text-zinc-500 hover:text-red-500 transition-colors"
@@ -181,7 +180,7 @@ export const Navbar: React.FC = () => {
 
           <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
 
-          <ThemeButton theme={theme} onToggle={toggleTheme} />
+          <ThemeButton theme={currentTheme} mounted={mounted} onToggle={toggleTheme} />
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-3 pl-1">
@@ -212,36 +211,40 @@ export const Navbar: React.FC = () => {
   );
 };
 
-const ThemeButton: React.FC<{ theme: 'light' | 'dark'; onToggle: () => void }> = ({ theme, onToggle }) => (
+const ThemeButton: React.FC<{ theme: 'light' | 'dark'; mounted: boolean; onToggle: () => void }> = ({ theme, mounted, onToggle }) => (
   <button
     onClick={onToggle}
     aria-label="Toggle theme"
     className="flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-colors"
   >
-    <AnimatePresence mode="wait" initial={false}>
-      {theme === 'light' ? (
-        <motion.svg
-          key="light"
-          initial={{ opacity: 0, rotate: -45 }}
-          animate={{ opacity: 1, rotate: 0 }}
-          exit={{ opacity: 0, rotate: 45 }}
-          transition={{ duration: 0.2 }}
-          className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </motion.svg>
-      ) : (
-        <motion.svg
-          key="dark"
-          initial={{ opacity: 0, rotate: -45 }}
-          animate={{ opacity: 1, rotate: 0 }}
-          exit={{ opacity: 0, rotate: 45 }}
-          transition={{ duration: 0.2 }}
-          className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
-        </motion.svg>
-      )}
-    </AnimatePresence>
+    {!mounted ? (
+      <div className="w-4 h-4" />
+    ) : (
+      <AnimatePresence mode="wait" initial={false}>
+        {theme === 'light' ? (
+          <motion.svg
+            key="light"
+            initial={{ opacity: 0, rotate: -45 }}
+            animate={{ opacity: 1, rotate: 0 }}
+            exit={{ opacity: 0, rotate: 45 }}
+            transition={{ duration: 0.2 }}
+            className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </motion.svg>
+        ) : (
+          <motion.svg
+            key="dark"
+            initial={{ opacity: 0, rotate: -45 }}
+            animate={{ opacity: 1, rotate: 0 }}
+            exit={{ opacity: 0, rotate: 45 }}
+            transition={{ duration: 0.2 }}
+            className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    )}
   </button>
 );

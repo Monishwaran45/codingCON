@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import db from '../db/database';
-import { UserRow } from '../db/types';
+import { User } from '../db/models/User';
+import { Role } from '../db/models/Role';
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
     username: string;
-    role: 'student' | 'admin' | 'problem_setter';
+    role: string;
+    permissions: string[];
   };
 }
 
@@ -20,7 +21,7 @@ export function signToken(payload: { id: string; email: string; role: string }):
   } as jwt.SignOptions);
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   // Accept from cookie OR Authorization header
   const token =
     req.cookies?.token ||
@@ -37,26 +38,31 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     };
 
     // Verify user still exists in DB
-    const raw = db
-      .prepare('SELECT id, email, username, role FROM users WHERE id = ?')
-      .get(decoded.id);
-    const user = raw as Pick<UserRow, 'id' | 'email' | 'username' | 'role'> | undefined;
+    const userDoc = await User.findById(decoded.id).select('id email username role');
 
-    if (!user) {
+    if (!userDoc) {
       res.status(401).json({ error: 'User not found' });
       return;
     }
 
-    req.user = user;
+    const roleDoc = await Role.findOne({ name: userDoc.role });
+
+    req.user = {
+      id: userDoc._id,
+      email: userDoc.email,
+      username: userDoc.username,
+      role: userDoc.role,
+      permissions: roleDoc?.permissions || [],
+    };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
-export function requireRole(...roles: string[]) {
+export function requirePermission(...permissions: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user || !permissions.some(p => req.user!.permissions.includes(p))) {
       res.status(403).json({ error: 'Insufficient permissions' });
       return;
     }

@@ -2,25 +2,30 @@
   "name": "codingcon-backend",
   "version": "1.0.0",
   "description": "CIT Coding Contest backend — REST API + Socket.IO + code judge",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "node --watch-path=src -r ts-node/register src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
+    "worker": "ts-node src/worker.ts",
     "seed": "ts-node scripts/seed.ts",
     "db:reset": "ts-node scripts/reset.ts"
   },
   "dependencies": {
+    "amqplib": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "mongodb-memory-server": "^11.2.0",
+    "mongoose": "^9.9.1",
     "socket.io": "^4.7.5",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",

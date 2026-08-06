@@ -9,7 +9,6 @@ import { StatsOverview } from '@/components/profile/StatsOverview';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { useAuthStore } from '@/store/useAuthStore';
 
-import { getRatingTitle } from '@/lib/ranking';
 
 export default function ProfilePage() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -50,9 +49,6 @@ export default function ProfilePage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-extrabold text-white">{user.username}</h1>
-              <span className="rounded-full bg-cyan-500/20 px-3 py-0.5 text-xs font-bold text-cyan-400 border border-cyan-500/40">
-                {getRatingTitle(user.rating)}
-              </span>
             </div>
             <p className="text-xs text-zinc-400 mt-1">{user.email} • Role: {user.role}</p>
           </div>

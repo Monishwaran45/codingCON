@@ -35,7 +35,16 @@ const USE_DOCKER  = process.env.JUDGE_USE_DOCKER === 'true';
 // We subtract this from the measured time before comparing to the problem limit.
 const SPAWN_OVERHEAD_MS = (process.platform === 'win32' && !USE_DOCKER) ? 600 : 0;
 
-// ── Language metadata ─────────────────────────────────────────────────────────
+const PYTHON_BIN = process.platform === 'win32' ? 'python' : 'python3';
+
+function getJavaClassName(code: string): string {
+  const publicMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/);
+  if (publicMatch && publicMatch[1]) return publicMatch[1];
+  const classMatch = code.match(/class\s+([A-Za-z0-9_]+)/);
+  if (classMatch && classMatch[1]) return classMatch[1];
+  return 'Solution';
+}
+
 const LANG_CONFIG: Record<string, {
   ext: string;
   image: string;
@@ -45,7 +54,7 @@ const LANG_CONFIG: Record<string, {
   python: {
     ext:    'py',
     image:  'python:3.11-alpine',
-    runCmd: (src) => ['python3', src],
+    runCmd: (src) => [PYTHON_BIN, src],
   },
   javascript: {
     ext:    'js',
@@ -60,9 +69,9 @@ const LANG_CONFIG: Record<string, {
   },
   java: {
     ext:    'java',
-    image:  'openjdk:21-slim',
+    image:  'eclipse-temurin:21-jdk-alpine',
     buildCmd: (src) => ['javac', src],
-    runCmd:   (src) => ['java', '-cp', path.dirname(src), 'Solution'],
+    runCmd:   (src) => ['java', '-cp', path.dirname(src), path.basename(src, '.java')],
   },
 };
 
@@ -86,9 +95,11 @@ async function runNative(
   stdin: string,
   cfg: typeof LANG_CONFIG[string],
 ): Promise<RunResult> {
-  const dir    = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
-  const srcFile = path.join(dir, language === 'java' ? 'Solution.' + cfg.ext : 'solution.' + cfg.ext);
-  const binFile = path.join(dir, 'solution');
+  const dir     = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+  const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
+  const srcFile = path.join(dir, language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`);
+  const binName = process.platform === 'win32' ? 'solution.exe' : 'solution';
+  const binFile = path.join(dir, binName);
 
   fs.writeFileSync(srcFile, code, 'utf8');
 
@@ -103,8 +114,13 @@ async function runNative(
       cleanup(dir);
       const e = err as { stderr?: string; message?: string };
       return {
-        stdout: '', stderr: e.stderr ?? e.message ?? 'Compilation error',
-        executionTimeMs: 0, netTimeMs: 0, memoryKb: 0, exitCode: 1, timedOut: false,
+        stdout: '',
+        stderr: e.stderr || e.message || 'Compilation error: compiler not found or build failed.',
+        executionTimeMs: 0,
+        netTimeMs: 0,
+        memoryKb: 0,
+        exitCode: 1,
+        timedOut: false,
       };
     }
   }
@@ -113,19 +129,33 @@ async function runNative(
   const start   = Date.now();
 
   return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
     const child = spawn(runArgs[0], runArgs.slice(1), {
       cwd: dir,
       env: { ...process.env, PATH: process.env.PATH },
     });
 
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGKILL');
     }, TIMEOUT_MS);
+
+    child.on('error', (err: Error) => {
+      clearTimeout(timer);
+      cleanup(dir);
+      resolve({
+        stdout: '',
+        stderr: `Execution error (${runArgs[0]}): ${err.message}`,
+        executionTimeMs: 0,
+        netTimeMs: 0,
+        memoryKb: 0,
+        exitCode: 1,
+        timedOut: false,
+      });
+    });
 
     child.stdin.write(stdin ?? '');
     child.stdin.end();
@@ -158,7 +188,8 @@ async function runInDocker(
   cfg: typeof LANG_CONFIG[string],
 ): Promise<RunResult> {
   const dir     = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
-  const srcName = language === 'java' ? `Solution.${cfg.ext}` : `solution.${cfg.ext}`;
+  const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
+  const srcName = language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`;
   const srcFile = path.join(dir, srcName);
   fs.writeFileSync(srcFile, code, 'utf8');
   fs.writeFileSync(path.join(dir, 'stdin.txt'), stdin ?? '', 'utf8');
@@ -178,24 +209,27 @@ async function runInDocker(
     '--cpus', '0.5',
     '--ulimit', 'nproc=64',
     '--ulimit', 'nofile=64',
-    '-v', `${dir}:/code:ro`,
+    '-v', `${dir}:/code:rw`,
     cfg.image,
     'sh', '-c', shellCmd,
   ];
 
   const start = Date.now();
+  const DOCKER_OVERHEAD = 2200; // Approximate Docker container startup overhead in ms
+
   try {
     const { stdout, stderr } = await execFileAsync('docker', args, {
-      timeout: TIMEOUT_MS + 2000,
+      timeout: TIMEOUT_MS + 3000,
       maxBuffer: 10 * 1024 * 1024,
     });
     cleanup(dir);
     const wall = Date.now() - start;
+    const adjustedTime = Math.max(0, wall - DOCKER_OVERHEAD);
     return {
       stdout:          stdout.trimEnd(),
       stderr:          stderr.trimEnd(),
-      executionTimeMs: wall,
-      netTimeMs:       wall,
+      executionTimeMs: adjustedTime,
+      netTimeMs:       adjustedTime,
       memoryKb:        0,
       exitCode:        0,
       timedOut:        false,
@@ -204,11 +238,12 @@ async function runInDocker(
     cleanup(dir);
     const e = err as { killed?: boolean; stderr?: string; stdout?: string; code?: number };
     const wall = Date.now() - start;
+    const adjustedTime = Math.max(0, wall - DOCKER_OVERHEAD);
     return {
       stdout:          e.stdout?.trimEnd() ?? '',
       stderr:          e.stderr?.trimEnd() ?? '',
-      executionTimeMs: wall,
-      netTimeMs:       wall,
+      executionTimeMs: adjustedTime,
+      netTimeMs:       adjustedTime,
       memoryKb:        0,
       exitCode:        e.code ?? 1,
       timedOut:        e.killed ?? false,

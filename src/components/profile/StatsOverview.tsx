@@ -14,13 +14,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ user }) => {
       </div>
 
       <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-4 text-center">
-        <span className="text-xs text-zinc-500 block mb-1">Current Rating</span>
-        <span className="text-2xl font-extrabold text-cyan-400">{user.rating}</span>
-      </div>
-
-      <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-4 text-center">
-        <span className="text-xs text-zinc-500 block mb-1">Max Rating</span>
-        <span className="text-2xl font-extrabold text-indigo-400">{user.maxRating}</span>
+        <span className="text-xs text-zinc-500 block mb-1">Total Points</span>
+        <span className="text-2xl font-extrabold text-amber-400">{user.totalPoints || 0}</span>
       </div>
     </div>
   );

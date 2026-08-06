@@ -6,8 +6,7 @@ export interface UserRow {
   email: string;
   password_hash: string;
   role: 'student' | 'admin' | 'problem_setter';
-  rating: number;
-  max_rating: number;
+  total_points: number;
   streak_days: number;
   solved_count: number;
   created_at: string;

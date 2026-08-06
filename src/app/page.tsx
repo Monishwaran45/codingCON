@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AuthForm } from '@/components/auth/AuthForm';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 import { useContestStore } from '@/store/useContestStore';
 import { api } from '@/lib/api';
 import { Submission } from '@/types';
@@ -24,7 +24,7 @@ const itemVariants = {
 };
 
 export default function StudentDashboardPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuth();
   const { contest, setContest } = useContestStore();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,11 +64,11 @@ export default function StudentDashboardPage() {
           >
             <div>
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-white leading-[1.15]">
-                CIT Assessment{' '}
+                {process.env.NEXT_PUBLIC_APP_SHORT_NAME || 'Coding Assessment'}{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">System</span>
               </h1>
               <p className="text-[0.9rem] text-zinc-500 dark:text-zinc-400 mt-5 leading-relaxed max-w-md">
-                Internal coding assessment platform for Chennai Institute of Technology. Sign in to access contests, solve problems, and track your progress.
+                Internal coding assessment platform for {process.env.NEXT_PUBLIC_INSTITUTE_NAME || 'your institute'}. Sign in to access contests, solve problems, and track your progress.
               </p>
             </div>
 
@@ -306,7 +306,7 @@ export default function StudentDashboardPage() {
                 { href: contest ? `/contest/${contest.id}/leaderboard` : '/problems', label: 'Live Leaderboard', icon: '🏆' },
                 { href: '/profile', label: 'My Submissions', icon: '📜' },
               ].map(({ href, label, icon }) => (
-                <Link key={href} href={href} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-xs text-zinc-700 dark:text-zinc-300 font-semibold transition-colors group">
+                <Link key={label} href={href} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/50 text-xs text-zinc-700 dark:text-zinc-300 font-semibold transition-colors group">
                   <span className="text-sm grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all">{icon}</span>
                   <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400">{label}</span>
                 </Link>

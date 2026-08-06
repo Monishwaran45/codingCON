@@ -9,9 +9,9 @@ export interface User {
   username: string;
   email: string;
   role: UserRole;
+  permissions: string[];
   avatarUrl?: string;
-  rating: number;
-  maxRating: number;
+  totalPoints: number;
   streakDays: number;
   solvedCount: number;
   ratingHistory: { date: string; rating: number }[];

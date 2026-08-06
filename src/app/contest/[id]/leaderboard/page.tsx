@@ -16,11 +16,11 @@ export default function LeaderboardPage() {
   const params = useParams();
   const contestId = (params?.id as string) || '';
 
-  const { leaderboard, setLeaderboard } = useContestStore();
+  const { contest, setContest, leaderboard, setLeaderboard } = useContestStore();
   const { user } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Subscribe to live WebSocket updates from the NestJS Leaderboard microservice
+  // Subscribe to live WebSocket updates from the Leaderboard microservice
   useLeaderboardSocket(contestId, (updatedLeaderboard) => {
     if (Array.isArray(updatedLeaderboard)) {
       setLeaderboard(updatedLeaderboard);
@@ -28,18 +28,29 @@ export default function LeaderboardPage() {
   });
 
   useEffect(() => {
-    async function loadLeaderboard() {
+    async function loadData() {
       if (!contestId) {
         setIsLoading(false);
         return;
       }
-      setIsLoading(true);
-      const data = await api.getLeaderboard(contestId);
-      setLeaderboard(data);
+      const [lbData, contestData] = await Promise.all([
+        api.getLeaderboard(contestId).catch(() => []),
+        api.getContest(contestId).catch(() => null),
+      ]);
+      setLeaderboard(lbData);
+      if (contestData) setContest(contestData);
       setIsLoading(false);
     }
-    loadLeaderboard();
-  }, [contestId, setLeaderboard]);
+    
+    // Initial load
+    setIsLoading(true);
+    loadData();
+
+    // Fallback polling every 60 seconds to ensure it stays in sync
+    // in case the WebSocket connection drops or isn't active
+    const interval = setInterval(loadData, 60000);
+    return () => clearInterval(interval);
+  }, [contestId, setLeaderboard, setContest]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 font-inter space-y-6">
@@ -54,7 +65,7 @@ export default function LeaderboardPage() {
           </h1>
         </div>
 
-        <ContestTimer />
+        <ContestTimer endTime={contest?.endTime} />
       </div>
 
       {isLoading ? (

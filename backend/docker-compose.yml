@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: codingcon_mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: codingcon_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: codingcon_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  fastapi_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codingcon_fastapi
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/codingcon
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - JWT_SECRET=codingcon_super_secret_jwt_key_change_in_prod
+      - CORS_ORIGIN=http://localhost:3000
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+
+  judge_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codingcon_worker
+    restart: always
+    command: python -m app.worker.judge_worker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/codingcon
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - JUDGE_USE_DOCKER=true
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:

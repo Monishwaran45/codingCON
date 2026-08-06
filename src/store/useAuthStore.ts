@@ -9,6 +9,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -31,6 +32,18 @@ export const useAuthStore = create<AuthState>()(
             err instanceof Error ? err.message : 'Login failed. Check your credentials.';
           set({ isLoading: false, error: message });
           throw err; // re-throw so AuthForm can react
+        }
+      },
+
+      register: async (email: string, username: string, password: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const userData = await api.register(email, username, password);
+          set({ user: userData, isAuthenticated: true, isLoading: false, error: null });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : 'Registration failed.';
+          set({ isLoading: false, error: message });
+          throw err;
         }
       },
 

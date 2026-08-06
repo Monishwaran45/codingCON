@@ -1,7 +1,7 @@
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import db from '../db/database';
+import { Submission } from '../db/models/Submission';
 
 let io: SocketIOServer | null = null;
 
@@ -47,15 +47,13 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
     const userId = (socket as Socket & { userId?: string }).userId;
 
     // Client subscribes to their own submission updates
-    socket.on('subscribe:submission', (submissionId: string) => {
+    socket.on('subscribe:submission', async (submissionId: string) => {
       if (!submissionId || typeof submissionId !== 'string') return;
 
       // Verify ownership if user is authenticated
       if (userId) {
-        const sub = db
-          .prepare('SELECT user_id FROM submissions WHERE id = ?')
-          .get(submissionId) as { user_id: string } | undefined;
-        if (sub && sub.user_id !== userId) return; // don't allow peeking at others
+        const sub = await Submission.findById(submissionId).select('userId');
+        if (sub && sub.userId !== userId) return; // don't allow peeking at others
       }
 
       socket.join(`submission:${submissionId}`);

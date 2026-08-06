@@ -65,6 +65,12 @@ export default function ProblemDetailPage() {
   }, [problemId, resetVerdict]);
 
   useEffect(() => {
+    if (verdict === 'AC' && problem && !problem.isSolved) {
+      setProblem({ ...problem, isSolved: true });
+    }
+  }, [verdict, problem]);
+
+  useEffect(() => {
     const handleHotkeys = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();

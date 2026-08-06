@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/useAuthStore';
+import { useAuth } from '@/hooks/useAuth';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 
 interface AdminGuardProps {
@@ -10,7 +10,7 @@ interface AdminGuardProps {
 }
 
 export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,7 +20,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     );
   }
 
-  const hasAccess = isAuthenticated && user && (user.role === 'admin' || user.role === 'problem_setter');
+  const hasAccess = isAuthenticated && user && (user.permissions?.includes('manage_problems') || user.permissions?.includes('manage_users'));
 
   if (!hasAccess) {
     return (

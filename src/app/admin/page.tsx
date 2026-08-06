@@ -6,6 +6,9 @@ import { api } from '@/lib/api';
 import { Problem, Contest } from '@/types';
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
+import { CreateContestModal } from '@/components/admin/CreateContestModal';
+import { ProblemImportModal } from '@/components/admin/ProblemImportModal';
+import { ContestTimer } from '@/components/contest/ContestTimer';
 
 type Tab = 'problems' | 'contests' | 'announcements';
 
@@ -18,12 +21,17 @@ const DIFF_STYLES = {
 export default function AdminDashboardPage() {
   const [tab, setTab] = useState<Tab>('problems');
   const [problems, setProblems] = useState<Problem[]>([]);
-  const [contest, setContest] = useState<Contest | null>(null);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [activeContest, setActiveContest] = useState<Contest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDiff, setSelectedDiff] = useState<string>('all');
 
-  // Announcement form state
+  // Modals
+  const [isContestModalOpen, setIsContestModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+  // Announcement state
   const [annMsg, setAnnMsg] = useState('');
   const [annSending, setAnnSending] = useState(false);
   const [annSuccess, setAnnSuccess] = useState('');
@@ -31,12 +39,14 @@ export default function AdminDashboardPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [probs, cont] = await Promise.all([
+      const [probs, contList, activeCont] = await Promise.all([
         api.getProblems(),
+        api.getContests().catch(() => []),
         api.getActiveContest().catch(() => null),
       ]);
       setProblems(probs);
-      setContest(cont);
+      setContests(contList);
+      setActiveContest(activeCont);
     } finally {
       setIsLoading(false);
     }
@@ -52,12 +62,17 @@ export default function AdminDashboardPage() {
     setProblems((prev) => prev.filter((p) => p.id !== id));
   };
 
+  const handleToggleFreeze = async (contestId: string, currentFrozen: boolean) => {
+    await api.freezeLeaderboard(contestId, !currentFrozen);
+    loadData();
+  };
+
   const handleAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!annMsg.trim() || !contest) return;
+    if (!annMsg.trim() || !activeContest) return;
     setAnnSending(true);
-    await api.postAnnouncement(contest.id, annMsg.trim());
-    setAnnSuccess('Announcement posted to all students.');
+    await api.postAnnouncement(activeContest.id, annMsg.trim());
+    setAnnSuccess('Announcement broadcasted live to all students.');
     setAnnMsg('');
     setAnnSending(false);
     setTimeout(() => setAnnSuccess(''), 4000);
@@ -65,7 +80,8 @@ export default function AdminDashboardPage() {
   };
 
   const filteredProblems = problems.filter((p) => {
-    const matchSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchSearch =
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchDiff = selectedDiff === 'all' || p.difficulty === selectedDiff;
     return matchSearch && matchDiff;
@@ -73,9 +89,9 @@ export default function AdminDashboardPage() {
 
   const stats = [
     { label: 'Total Problems', value: problems.length, color: 'text-blue-600 dark:text-blue-400' },
-    { label: 'Active Contest', value: contest ? 1 : 0, color: 'text-emerald-600 dark:text-emerald-400' },
-    { label: 'Participants', value: contest?.participantCount ?? 0, color: 'text-amber-600 dark:text-amber-400' },
-    { label: 'Announcements', value: contest?.announcements?.length ?? 0, color: 'text-violet-600 dark:text-violet-400' },
+    { label: 'Scheduled Contests', value: contests.length, color: 'text-emerald-600 dark:text-emerald-400' },
+    { label: 'Live Contest Participants', value: activeContest?.participantCount ?? 0, color: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Broadcast Announcements', value: activeContest?.announcements?.length ?? 0, color: 'text-violet-600 dark:text-violet-400' },
   ];
 
   return (
@@ -85,21 +101,33 @@ export default function AdminDashboardPage() {
         <div className="border-b border-zinc-200 dark:border-zinc-800 pb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <span className="text-[0.62rem] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest block mb-1">
-              Faculty Administration Console
+              Faculty & Admin Control Panel
             </span>
             <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
               Admin Dashboard
             </h1>
             <p className="text-xs text-zinc-500 mt-1">
-              Manage problems, contests, and student communications.
+              Upload problem sets, set execution time limits, schedule contests & monitor real-time coding platform.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold px-3.5 py-2 transition-colors shadow-xs"
+            >
+              📥 Import JSON
+            </button>
+            <button
+              onClick={() => setIsContestModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3.5 py-2 transition-colors shadow-xs"
+            >
+              ⏱ Start Contest
+            </button>
             <Link
               href="/admin/problems/new"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 transition-colors shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 transition-colors shadow-xs"
             >
-              <span>+</span> Create Problem
+              <span>+</span> Upload Problem
             </Link>
           </div>
         </div>
@@ -125,9 +153,9 @@ export default function AdminDashboardPage() {
         <div className="border-b border-zinc-200 dark:border-zinc-800">
           <nav className="flex gap-1 -mb-px">
             {([
-              { id: 'problems', label: `Problems (${problems.length})` },
-              { id: 'contests', label: 'Contest Management' },
-              { id: 'announcements', label: 'Announcements' },
+              { id: 'problems', label: `Problem Archive (${problems.length})` },
+              { id: 'contests', label: `Contest Management (${contests.length})` },
+              { id: 'announcements', label: 'Live Announcements' },
             ] as { id: Tab; label: string }[]).map(({ id, label }) => (
               <button
                 key={id}
@@ -153,7 +181,7 @@ export default function AdminDashboardPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title or tag..."
+                placeholder="Search by problem title or tag..."
                 className="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none transition-colors"
               />
               <select
@@ -171,14 +199,15 @@ export default function AdminDashboardPage() {
             {isLoading ? (
               <SkeletonLoader count={5} className="h-12 w-full rounded-xl" />
             ) : filteredProblems.length > 0 ? (
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
                 <table className="w-full text-left text-xs font-inter">
                   <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
                     <tr>
                       <th className="py-3 px-4">Problem</th>
                       <th className="py-3 px-4 text-center">Difficulty</th>
                       <th className="py-3 px-4 text-center">Points</th>
-                      <th className="py-3 px-4 text-center">Constraints</th>
+                      <th className="py-3 px-4 text-center">Timeout (Ms)</th>
+                      <th className="py-3 px-4 text-center">Memory</th>
                       <th className="py-3 px-4 text-center">Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
@@ -204,21 +233,30 @@ export default function AdminDashboardPage() {
                         <td className="py-3.5 px-4 text-center font-mono font-bold text-zinc-800 dark:text-zinc-200">
                           {problem.points}
                         </td>
+                        <td className="py-3.5 px-4 text-center font-mono text-blue-600 dark:text-blue-400 font-semibold text-[0.7rem]">
+                          {problem.timeLimitMs} ms
+                        </td>
                         <td className="py-3.5 px-4 text-center font-mono text-zinc-500 text-[0.7rem]">
-                          {problem.timeLimitMs}ms / {problem.memoryLimitMb}MB
+                          {problem.memoryLimitMb} MB
                         </td>
                         <td className="py-3.5 px-4 text-center">
                           <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase">
-                            Published
+                            Active
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-2.5">
                             <Link
                               href={`/problems/${problem.id}`}
-                              className="text-[0.7rem] font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+                              className="text-[0.7rem] font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
                             >
                               Preview
+                            </Link>
+                            <Link
+                              href={`/admin/problems/${problem.id}/edit`}
+                              className="text-[0.7rem] font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+                            >
+                              Edit
                             </Link>
                             <button
                               onClick={() => handleDelete(problem.id, problem.title)}
@@ -235,14 +273,22 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">No problems yet</p>
-                <p className="text-xs text-zinc-500 mb-4">Get started by creating your first problem.</p>
-                <Link
-                  href="/admin/problems/new"
-                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 transition-colors"
-                >
-                  + Create Problem
-                </Link>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">No problems uploaded yet</p>
+                <p className="text-xs text-zinc-500 mb-4">Upload your first problem or batch import via JSON.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300"
+                  >
+                    Import JSON
+                  </button>
+                  <Link
+                    href="/admin/problems/new"
+                    className="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 transition-colors"
+                  >
+                    + Create Problem
+                  </Link>
+                </div>
               </div>
             )}
           </div>
@@ -251,69 +297,108 @@ export default function AdminDashboardPage() {
         {/* ── Contest Tab ──────────────────────────────────────────────────── */}
         {tab === 'contests' && (
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                All Contests ({contests.length})
+              </h3>
+              <button
+                onClick={() => setIsContestModalOpen(true)}
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 transition-colors"
+              >
+                + Schedule & Start New Contest
+              </button>
+            </div>
+
             {isLoading ? (
               <SkeletonLoader count={3} className="h-20 w-full rounded-xl" />
-            ) : contest ? (
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
-                {/* Contest header */}
-                <div className="px-6 py-5 border-b border-zinc-100 dark:border-zinc-900 flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase inline-flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        Live
-                      </span>
-                      <span className="text-xs font-mono text-zinc-400">ID: {contest.id}</span>
-                    </div>
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{contest.title}</h3>
-                  </div>
-                  <div className="text-right text-xs text-zinc-500">
-                    <div>Started: <span className="font-mono">{new Date(contest.startTime).toLocaleTimeString()}</span></div>
-                    <div>Ends: <span className="font-mono">{new Date(contest.endTime).toLocaleTimeString()}</span></div>
-                  </div>
-                </div>
-
-                {/* Contest problems */}
-                <div className="px-6 py-4">
-                  <h4 className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider mb-3">
-                    Problems in this Contest ({contest.problems.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {contest.problems.map((p, i) => (
-                      <div key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 px-4 py-2.5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-mono font-bold text-zinc-400">{String.fromCharCode(65 + i)}</span>
-                          <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">{p.title}</span>
-                          <span className={`text-[0.62rem] font-bold px-2 py-0.5 rounded border uppercase ${DIFF_STYLES[p.difficulty]}`}>
-                            {p.difficulty}
-                          </span>
+            ) : contests.length > 0 ? (
+              <div className="space-y-4">
+                {contests.map((c) => {
+                  const isCurrentActive = activeContest?.id === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs"
+                    >
+                      <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            {isCurrentActive ? (
+                              <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase inline-flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Live Contest
+                              </span>
+                            ) : (
+                              <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-zinc-500/10 border border-zinc-500/20 text-zinc-500 uppercase">
+                                Scheduled / Ended
+                              </span>
+                            )}
+                            <span className="text-xs font-mono text-zinc-400">ID: {c.id}</span>
+                          </div>
+                          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{c.title}</h3>
                         </div>
-                        <span className="font-mono text-xs text-zinc-500">{p.points} pts</span>
-                      </div>
-                    ))}
-                  </div>
 
-                  <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-900 flex items-center gap-2">
-                    <Link
-                      href={`/contest/${contest.id}`}
-                      className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      View Student Contest Page →
-                    </Link>
-                    <span className="text-zinc-300 dark:text-zinc-800">·</span>
-                    <Link
-                      href={`/contest/${contest.id}/leaderboard`}
-                      className="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                    >
-                      Leaderboard
-                    </Link>
-                  </div>
-                </div>
+                        <div className="flex items-center gap-3">
+                          <ContestTimer endTime={c.endTime} durationMinutes={c.durationMinutes} />
+                          <button
+                            onClick={() => handleToggleFreeze(c.id, !!c.isLeaderboardFrozen)}
+                            className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
+                              c.isLeaderboardFrozen
+                                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                                : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+                            }`}
+                          >
+                            {c.isLeaderboardFrozen ? '❄ Leaderboard Frozen' : 'Freeze Leaderboard'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="px-6 py-4 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        <div className="flex items-center justify-between text-xs text-zinc-500 mb-3">
+                          <span>Problems included ({c.problems?.length ?? 0}):</span>
+                          <span>Max Total Score: <strong className="font-mono text-zinc-800 dark:text-zinc-200">{c.maxScore} pts</strong></span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {(c.problems ?? []).map((p, i) => (
+                            <span
+                              key={p.id}
+                              className="text-xs font-semibold px-3 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200"
+                            >
+                              <span className="font-mono text-zinc-400 mr-1.5">{String.fromCharCode(65 + i)}:</span>
+                              {p.title} ({p.points} pts)
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center gap-4 text-xs font-semibold">
+                          <Link
+                            href={`/contest/${c.id}`}
+                            className="text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            View Live Student Platform →
+                          </Link>
+                          <Link
+                            href={`/contest/${c.id}/leaderboard`}
+                            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                          >
+                            View Leaderboard ({c.participantCount} users)
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">No active contest</p>
-                <p className="text-xs text-zinc-500">Contest management via backend API coming soon.</p>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-2">No contests scheduled</p>
+                <p className="text-xs text-zinc-500 mb-4">Schedule a contest to test students in real time with timed execution.</p>
+                <button
+                  onClick={() => setIsContestModalOpen(true)}
+                  className="rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 transition-colors"
+                >
+                  + Schedule First Contest
+                </button>
               </div>
             )}
           </div>
@@ -323,45 +408,45 @@ export default function AdminDashboardPage() {
         {tab === 'announcements' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Post new announcement */}
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4 shadow-xs">
               <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                Post Announcement
+                Broadcast Real-Time Announcement
               </h3>
               <form onSubmit={handleAnnouncement} className="space-y-3">
                 <textarea
                   value={annMsg}
                   onChange={(e) => setAnnMsg(e.target.value)}
-                  placeholder="Type your announcement to broadcast to all active students..."
+                  placeholder="Type your announcement (e.g., 'Clarity on Problem B: 1-indexed input format')..."
                   rows={4}
                   required
-                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none resize-none transition-colors"
+                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none resize-none transition-colors"
                 />
                 {annSuccess && (
-                  <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
                     ✓ {annSuccess}
                   </div>
                 )}
                 <button
                   type="submit"
-                  disabled={annSending || !annMsg.trim()}
+                  disabled={annSending || !annMsg.trim() || !activeContest}
                   className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 transition-colors disabled:opacity-50"
                 >
-                  {annSending ? 'Posting...' : 'Broadcast to All Students'}
+                  {annSending ? 'Broadcasting...' : 'Broadcast to Active Contest Platform'}
                 </button>
               </form>
             </div>
 
             {/* Recent announcements */}
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4">
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 space-y-4 shadow-xs">
               <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
-                Recent Announcements ({contest?.announcements?.length ?? 0})
+                Recent Broadcasts ({activeContest?.announcements?.length ?? 0})
               </h3>
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {(contest?.announcements ?? []).length === 0 ? (
-                  <p className="text-xs text-zinc-500 text-center py-8">No announcements posted yet.</p>
+                {(activeContest?.announcements ?? []).length === 0 ? (
+                  <p className="text-xs text-zinc-500 text-center py-8">No announcements broadcasted yet.</p>
                 ) : (
-                  [...(contest?.announcements ?? [])].reverse().map((ann) => (
-                    <div key={ann.id} className="rounded-lg border border-zinc-100 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-900/50 p-3 space-y-1">
+                  [...(activeContest?.announcements ?? [])].reverse().map((ann) => (
+                    <div key={ann.id} className="rounded-lg border border-zinc-100 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-900/50 p-3.5 space-y-1">
                       <span className="text-[0.6rem] font-mono text-zinc-400">
                         {new Date(ann.timestamp).toLocaleString()}
                       </span>
@@ -373,6 +458,19 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* Modals */}
+        <CreateContestModal
+          isOpen={isContestModalOpen}
+          onClose={() => setIsContestModalOpen(false)}
+          onSuccess={loadData}
+          availableProblems={problems}
+        />
+        <ProblemImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={loadData}
+        />
       </div>
     </AdminGuard>
   );

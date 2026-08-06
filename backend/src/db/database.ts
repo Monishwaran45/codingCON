@@ -1,154 +1,202 @@
-/**
- * Database module — uses Node 24's built-in node:sqlite (no native install).
- * The API is synchronous and nearly identical to better-sqlite3.
- */
-import { DatabaseSync } from 'node:sqlite';
-import path from 'path';
-import fs from 'fs';
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
+import { v4 as uuid } from 'uuid';
 
 dotenv.config();
 
-const DB_PATH = process.env.DB_PATH || './data/codingcon.db';
-const resolvedPath = path.resolve(DB_PATH);
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/codingcon';
 
-// Ensure data directory exists
-const dir = path.dirname(resolvedPath);
-if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+export async function connectDB(): Promise<typeof mongoose> {
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose;
+  }
 
-const db = new DatabaseSync(resolvedPath);
+  let conn: typeof mongoose;
 
-// Enable WAL mode + foreign keys
-db.exec("PRAGMA journal_mode = WAL");
-db.exec("PRAGMA foreign_keys = ON");
+  try {
+    conn = await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+    });
+    console.log(`✓ MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
+  } catch (err) {
+    console.warn(`⚠️ Could not connect to external MongoDB at ${MONGODB_URI}. Error details:`, err);
+    console.warn(`Starting fallback In-Memory MongoDB...`);
+    try {
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
+      const mongoServer = await MongoMemoryServer.create();
+      const uri = mongoServer.getUri();
+      conn = await mongoose.connect(uri);
+      console.log(`✓ Connected to In-Memory MongoDB Server (${uri})`);
+    } catch (fallbackErr) {
+      console.error('❌ Failed to start fallback In-Memory MongoDB:', fallbackErr);
+      throw fallbackErr;
+    }
+  }
 
-export function initSchema(): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id              TEXT PRIMARY KEY,
-      username        TEXT NOT NULL UNIQUE,
-      email           TEXT NOT NULL UNIQUE,
-      password_hash   TEXT NOT NULL,
-      role            TEXT NOT NULL DEFAULT 'student'
-                        CHECK(role IN ('student','admin','problem_setter')),
-      rating          INTEGER NOT NULL DEFAULT 1500,
-      max_rating      INTEGER NOT NULL DEFAULT 1500,
-      streak_days     INTEGER NOT NULL DEFAULT 0,
-      solved_count    INTEGER NOT NULL DEFAULT 0,
-      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-    );
+  // Ensure default demo data exists if empty
+  await ensureSeedData();
 
-    CREATE TABLE IF NOT EXISTS rating_history (
-      id          TEXT PRIMARY KEY,
-      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      rating      INTEGER NOT NULL,
-      contest_id  TEXT,
-      recorded_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS problems (
-      id                TEXT PRIMARY KEY,
-      title             TEXT NOT NULL,
-      slug              TEXT NOT NULL UNIQUE,
-      difficulty        TEXT NOT NULL CHECK(difficulty IN ('easy','medium','hard')),
-      points            INTEGER NOT NULL DEFAULT 100,
-      time_limit_ms     INTEGER NOT NULL DEFAULT 1000,
-      memory_limit_mb   INTEGER NOT NULL DEFAULT 256,
-      acceptance_rate   REAL NOT NULL DEFAULT 0,
-      total_submissions INTEGER NOT NULL DEFAULT 0,
-      description       TEXT NOT NULL DEFAULT '',
-      input_format      TEXT NOT NULL DEFAULT '',
-      output_format     TEXT NOT NULL DEFAULT '',
-      tags              TEXT NOT NULL DEFAULT '[]',
-      is_active         INTEGER NOT NULL DEFAULT 1,
-      created_by        TEXT REFERENCES users(id),
-      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS test_cases (
-      id              TEXT PRIMARY KEY,
-      problem_id      TEXT NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
-      input           TEXT NOT NULL,
-      expected_output TEXT NOT NULL,
-      is_sample       INTEGER NOT NULL DEFAULT 0,
-      sort_order      INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS contests (
-      id                            TEXT PRIMARY KEY,
-      title                         TEXT NOT NULL,
-      start_time                    TEXT NOT NULL,
-      end_time                      TEXT NOT NULL,
-      duration_minutes              INTEGER NOT NULL DEFAULT 120,
-      participant_count             INTEGER NOT NULL DEFAULT 0,
-      max_score                     INTEGER NOT NULL DEFAULT 0,
-      is_leaderboard_frozen         INTEGER NOT NULL DEFAULT 0,
-      freeze_time_remaining_minutes INTEGER,
-      created_by                    TEXT REFERENCES users(id),
-      created_at                    TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS contest_problems (
-      contest_id TEXT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
-      problem_id TEXT NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (contest_id, problem_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS announcements (
-      id          TEXT PRIMARY KEY,
-      contest_id  TEXT NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
-      message     TEXT NOT NULL,
-      created_by  TEXT REFERENCES users(id),
-      timestamp   TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS submissions (
-      id                TEXT PRIMARY KEY,
-      problem_id        TEXT NOT NULL REFERENCES problems(id),
-      user_id           TEXT NOT NULL REFERENCES users(id),
-      contest_id        TEXT REFERENCES contests(id),
-      language          TEXT NOT NULL,
-      code              TEXT NOT NULL,
-      verdict           TEXT NOT NULL DEFAULT 'pending'
-                          CHECK(verdict IN ('pending','running','AC','WA','TLE','MLE','RE')),
-      passed_test_cases INTEGER NOT NULL DEFAULT 0,
-      total_test_cases  INTEGER NOT NULL DEFAULT 0,
-      execution_time_ms INTEGER NOT NULL DEFAULT 0,
-      memory_kb         INTEGER NOT NULL DEFAULT 0,
-      is_submit         INTEGER NOT NULL DEFAULT 0,
-      created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS submission_results (
-      id                TEXT PRIMARY KEY,
-      submission_id     TEXT NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-      test_case_id      TEXT NOT NULL,
-      passed            INTEGER NOT NULL DEFAULT 0,
-      actual_output     TEXT,
-      execution_time_ms INTEGER,
-      memory_kb         INTEGER,
-      error             TEXT,
-      sort_order        INTEGER NOT NULL DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS leaderboard (
-      contest_id            TEXT NOT NULL,
-      user_id               TEXT NOT NULL REFERENCES users(id),
-      username              TEXT NOT NULL,
-      solved_count          INTEGER NOT NULL DEFAULT 0,
-      total_score           INTEGER NOT NULL DEFAULT 0,
-      penalty_time_minutes  INTEGER NOT NULL DEFAULT 0,
-      problem_breakdown     TEXT NOT NULL DEFAULT '{}',
-      last_updated          TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (contest_id, user_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_submissions_user    ON submissions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_submissions_problem ON submissions(problem_id);
-    CREATE INDEX IF NOT EXISTS idx_test_cases_problem  ON test_cases(problem_id);
-    CREATE INDEX IF NOT EXISTS idx_leaderboard_contest ON leaderboard(contest_id, total_score);
-  `);
+  return conn;
 }
 
-export default db;
+async function ensureSeedData() {
+  const { User } = await import('./models/User');
+  const { Role } = await import('./models/Role');
+  const { Problem } = await import('./models/Problem');
+  const { Contest } = await import('./models/Contest');
+  const { Announcement } = await import('./models/Announcement');
+
+  const count = await User.countDocuments();
+  if (count > 0) return;
+
+  console.log('── Auto-seeding initial database collections …');
+
+  const roleCount = await Role.countDocuments();
+  if (roleCount === 0) {
+    await Role.create([
+      { name: 'admin', permissions: ['manage_problems', 'manage_contests', 'manage_users'] },
+      { name: 'problem_setter', permissions: ['manage_problems'] },
+      { name: 'student', permissions: ['solve_problems'] },
+    ]);
+  }
+
+  const adminId = uuid();
+  await User.create([
+    {
+      _id: adminId,
+      username: 'Admin',
+      email: 'admin@cit.edu',
+      passwordHash: bcrypt.hashSync('admin123', 10),
+      role: 'admin',
+      totalPoints: 0,
+    },
+    {
+      _id: uuid(),
+      username: 'Faculty',
+      email: 'faculty@cit.edu',
+      passwordHash: bcrypt.hashSync('faculty123', 10),
+      role: 'problem_setter',
+      totalPoints: 0,
+    },
+    {
+      _id: uuid(),
+      username: 'TestStudent',
+      email: 'student@cit.edu',
+      passwordHash: bcrypt.hashSync('student123', 10),
+      role: 'student',
+      totalPoints: 0,
+    },
+  ]);
+
+  const p1 = uuid();
+  const p2 = uuid();
+  const p3 = uuid();
+  const p4 = uuid();
+
+  await Problem.create([
+    {
+      _id: p1,
+      title: 'Two Sum',
+      slug: 'two-sum',
+      difficulty: 'easy',
+      points: 100,
+      timeLimitMs: 1000,
+      memoryLimitMb: 256,
+      description: 'Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.',
+      inputFormat: 'First line: integer N\nSecond line: N space-separated integers\nThird line: integer target',
+      outputFormat: 'Two space-separated indices i and j (0-indexed) such that nums[i]+nums[j]==target',
+      tags: ['Arrays', 'Hash Map'],
+      createdBy: adminId,
+      testCases: [
+        { id: uuid(), input: '4\n2 7 11 15\n9', expectedOutput: '0 1', isSample: true, sortOrder: 0 },
+        { id: uuid(), input: '3\n3 2 4\n6', expectedOutput: '1 2', isSample: true, sortOrder: 1 },
+        { id: uuid(), input: '2\n3 3\n6', expectedOutput: '0 1', isSample: false, sortOrder: 2 },
+      ],
+    },
+    {
+      _id: p2,
+      title: 'Valid Parentheses',
+      slug: 'valid-parentheses',
+      difficulty: 'easy',
+      points: 100,
+      timeLimitMs: 1000,
+      memoryLimitMb: 256,
+      description: 'Given a string `s` containing just the characters `(`, `)`, `{`, `}`, `[` and `]`, determine if the input string is valid.',
+      inputFormat: 'A single line string s',
+      outputFormat: 'Print "true" if valid, "false" otherwise',
+      tags: ['Strings', 'Stack'],
+      createdBy: adminId,
+      testCases: [
+        { id: uuid(), input: '()', expectedOutput: 'true', isSample: true, sortOrder: 0 },
+        { id: uuid(), input: '(]', expectedOutput: 'false', isSample: true, sortOrder: 1 },
+      ],
+    },
+    {
+      _id: p3,
+      title: 'Binary Search',
+      slug: 'binary-search',
+      difficulty: 'easy',
+      points: 100,
+      timeLimitMs: 2000,
+      memoryLimitMb: 256,
+      description: 'Given a sorted array of integers `nums` and a target integer, return the index of target. If not found, return -1.',
+      inputFormat: 'First line: N\nSecond line: N sorted integers\nThird line: target',
+      outputFormat: 'Index of target',
+      tags: ['Arrays', 'Searching'],
+      createdBy: adminId,
+      testCases: [
+        { id: uuid(), input: '6\n-1 0 3 5 9 12\n9', expectedOutput: '4', isSample: true, sortOrder: 0 },
+      ],
+    },
+    {
+      _id: p4,
+      title: 'Maximum Subarray',
+      slug: 'maximum-subarray',
+      difficulty: 'medium',
+      points: 200,
+      timeLimitMs: 1000,
+      memoryLimitMb: 256,
+      description: 'Given an integer array `nums`, find the contiguous subarray with the largest sum and return its sum.',
+      inputFormat: 'First line: N\nSecond line: N space-separated integers',
+      outputFormat: 'Integer — maximum subarray sum',
+      tags: ['Arrays', 'Dynamic Programming'],
+      createdBy: adminId,
+      testCases: [
+        { id: uuid(), input: '9\n-2 1 -3 4 -1 2 1 -5 4', expectedOutput: '6', isSample: true, sortOrder: 0 },
+      ],
+    },
+  ]);
+
+  const now = new Date();
+  const start = new Date(now.getTime() - 30 * 60 * 1000);
+  const end = new Date(now.getTime() + 90 * 60 * 1000);
+
+  await Contest.create({
+    _id: 'c88',
+    title: 'CIT Coding Assessment — Session 1',
+    startTime: start,
+    endTime: end,
+    durationMinutes: 120,
+    maxScore: 500,
+    createdBy: adminId,
+    problemIds: [p1, p2, p3, p4],
+  });
+
+  await Announcement.create({
+    _id: uuid(),
+    contestId: 'c88',
+    message: 'Welcome to Session 1. You have 120 minutes. Good luck to all participants.',
+    timestamp: new Date(now.getTime() - 20 * 60 * 1000),
+  });
+
+  console.log('✓ Initial seed completed successfully');
+}
+
+export function initSchema(): void {
+  connectDB().catch((err) => {
+    console.error('Failed to initialize MongoDB connection:', err);
+  });
+}
+
+export default mongoose;

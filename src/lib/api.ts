@@ -32,10 +32,10 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  register: (email: string, username: string, password: string, role?: string) =>
+  register: (email: string, username: string, password: string) =>
     fetcher<User>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, username, password, role }),
+      body: JSON.stringify({ email, username, password }),
     }),
 
   logout: () =>
@@ -55,13 +55,16 @@ export const api = {
   getProblemById: (id: string) =>
     fetcher<Problem>(`/problems/${id}`),
 
-  createProblem: (data: Partial<Problem>) =>
+  getAdminProblemById: (id: string) =>
+    fetcher<Problem & { allTestCases: { id?: string | number; input: string; expectedOutput: string; isSample: boolean }[] }>(`/problems/${id}/admin`),
+
+  createProblem: (data: Partial<Problem> & { testCases?: { input: string; expectedOutput: string; isSample?: boolean }[] }) =>
     fetcher<Problem>('/problems', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  updateProblem: (id: string, data: Partial<Problem>) =>
+  updateProblem: (id: string, data: Partial<Problem> & { testCases?: { input: string; expectedOutput: string; isSample?: boolean }[] }) =>
     fetcher<Problem>(`/problems/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -71,7 +74,10 @@ export const api = {
     fetcher<{ ok: boolean }>(`/problems/${id}`, { method: 'DELETE' }),
 
   // ── Contests ───────────────────────────────────────────────────────────────
-  /** Fetches the most recently started contest regardless of ID */
+  getContests: () =>
+    fetcher<Contest[]>('/contest'),
+
+  /** Fetches the active contest */
   getActiveContest: () =>
     fetcher<Contest>('/contest/active'),
 
@@ -113,4 +119,8 @@ export const api = {
   // ── Profile ────────────────────────────────────────────────────────────────
   getProfile: () =>
     fetcher<User>('/profile'),
+
+  // ── Roles ──────────────────────────────────────────────────────────────────
+  getRoles: () =>
+    fetcher<{ name: string; permissions: string[] }[]>('/roles'),
 };

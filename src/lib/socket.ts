@@ -9,6 +9,25 @@ export interface SubmissionProgressEvent {
   executionTimeMs?: number;
   memoryKb?: number;
   verdict?: 'running' | 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE';
+  isStreaming?: boolean;
+  testCaseResult?: {
+    id: string;
+    passed: boolean;
+    executionTimeMs?: number;
+    memoryKb?: number;
+    expectedOutput?: string;
+    actualOutput?: string;
+    error?: string;
+  };
+  failedTestCase?: {
+    id: string;
+    passed: boolean;
+    expectedOutput: string;
+    actualOutput: string;
+    executionTimeMs: number;
+    memoryKb: number;
+    error?: string;
+  };
 }
 
 class SocketService {
@@ -19,33 +38,53 @@ class SocketService {
       this.socket = io(WS_BASE_URL, {
         autoConnect: false,
         withCredentials: true,
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
       });
     }
     return this.socket;
   }
 
-  public subscribeToSubmission(submissionId: string, onProgress: (data: SubmissionProgressEvent) => void) {
+  public subscribeToSubmission(
+    submissionId: string,
+    onProgress: (data: SubmissionProgressEvent) => void,
+  ) {
     const socket = this.connect();
-    socket.emit('subscribe', `submission:${submissionId}`);
-    socket.on(`submission:${submissionId}:progress`, onProgress);
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('subscribe:submission', submissionId);
+    socket.on('submission:progress', onProgress);
+    socket.on('submission:done', onProgress);
   }
 
-  public unsubscribeFromSubmission(submissionId: string, onProgress: (data: SubmissionProgressEvent) => void) {
+  public unsubscribeFromSubmission(
+    submissionId: string,
+    onProgress: (data: SubmissionProgressEvent) => void,
+  ) {
     if (this.socket) {
-      this.socket.off(`submission:${submissionId}:progress`, onProgress);
+      this.socket.off('submission:progress', onProgress);
+      this.socket.off('submission:done', onProgress);
     }
   }
 
-  public subscribeToLeaderboard(contestId: string, onUpdate: (data: LeaderboardEntry[]) => void) {
+  public subscribeToLeaderboard(
+    contestId: string,
+    onUpdate: (data: LeaderboardEntry[]) => void,
+  ) {
     const socket = this.connect();
-    socket.emit('subscribe', `contest:${contestId}:leaderboard`);
-    socket.on(`contest:${contestId}:leaderboard:update`, onUpdate);
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('subscribe:leaderboard', contestId);
+    socket.on('leaderboard:update', onUpdate);
   }
 
-  public unsubscribeFromLeaderboard(contestId: string, onUpdate: (data: LeaderboardEntry[]) => void) {
+  public unsubscribeFromLeaderboard(
+    contestId: string,
+    onUpdate: (data: LeaderboardEntry[]) => void,
+  ) {
     if (this.socket) {
-      this.socket.off(`contest:${contestId}:leaderboard:update`, onUpdate);
+      this.socket.off('leaderboard:update', onUpdate);
     }
   }
 

@@ -1,80 +1,87 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
-import db from '../db/database';
-import { UserRow } from '../db/types';
+import { User, IUser } from '../db/models/User';
+import { Role } from '../db/models/Role';
+import { RatingHistory } from '../db/models/RatingHistory';
 import { signToken, requireAuth, AuthRequest } from '../middleware/auth';
-
-// node:sqlite returns Record<string,unknown> — cast through unknown
-function asUser(v: unknown) { return v as UserRow | undefined; }
-function asUsers(v: unknown) { return v as { rating: number; date: string }[]; }
 
 const router = Router();
 
 // ── POST /api/auth/register ──────────────────────────────────────────────────
-router.post('/register', (req: Request, res: Response): void => {
-  const { email, username, password, role } = req.body as {
-    email: string; username: string; password: string; role?: string;
-  };
+router.post('/register', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, username, password } = req.body as {
+      email: string; username: string; password: string;
+    };
 
-  if (!email || !username || !password) {
-    res.status(400).json({ error: 'email, username and password are required' });
-    return;
+    if (!email || !username || !password) {
+      res.status(400).json({ error: 'email, username and password are required' });
+      return;
+    }
+    if (password.length < 6) {
+      res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return;
+    }
+
+    const safeRole = 'student';
+
+    const existing = await User.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { username: username.trim() },
+      ],
+    });
+
+    if (existing) {
+      res.status(409).json({ error: 'Email or username already taken' });
+      return;
+    }
+
+    const id = uuid();
+    const hash = bcrypt.hashSync(password, 10);
+
+    const user = await User.create({
+      _id: id,
+      username: username.trim(),
+      email: email.toLowerCase().trim(),
+      passwordHash: hash,
+      role: safeRole,
+    });
+
+    const token = signToken({ id: user._id, email: user.email, role: user.role });
+    res.cookie('token', token, cookieOpts()).status(201).json(await toPublicUser(user));
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(500).json({ error: 'User registration failed' });
   }
-  if (password.length < 6) {
-    res.status(400).json({ error: 'Password must be at least 6 characters' });
-    return;
-  }
-
-  const safeRole = ['student', 'admin', 'problem_setter'].includes(role ?? '')
-    ? role! : 'student';
-
-  const existing = db
-    .prepare('SELECT id FROM users WHERE email = ? OR username = ?')
-    .get(email.toLowerCase(), username);
-  if (existing) {
-    res.status(409).json({ error: 'Email or username already taken' });
-    return;
-  }
-
-  const id   = uuid();
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare(
-    'INSERT INTO users (id,username,email,password_hash,role) VALUES (?,?,?,?,?)',
-  ).run(id, username.trim(), email.toLowerCase().trim(), hash, safeRole);
-
-  const user = asUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
-  if (!user) { res.status(500).json({ error: 'User creation failed' }); return; }
-
-  const token = signToken({ id: user.id, email: user.email, role: user.role });
-  res.cookie('token', token, cookieOpts()).status(201).json(toPublicUser(user));
 });
 
 // ── POST /api/auth/login ─────────────────────────────────────────────────────
-router.post('/login', (req: Request, res: Response): void => {
-  const { email, password } = req.body as { email: string; password: string };
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body as { email: string; password: string };
 
-  if (!email || !password) {
-    res.status(400).json({ error: 'email and password are required' });
-    return;
+    if (!email || !password) {
+      res.status(400).json({ error: 'email and password are required' });
+      return;
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+      res.status(401).json({ error: 'Invalid email or password' });
+      return;
+    }
+
+    const token = signToken({ id: user._id, email: user.email, role: user.role });
+    const historyDocs = await RatingHistory.find({ userId: user._id }).sort({ recordedAt: 1 });
+    const history = historyDocs.map((h) => ({ rating: h.rating, date: h.recordedAt.toISOString() }));
+
+    res.cookie('token', token, cookieOpts()).json({ ...(await toPublicUser(user)), ratingHistory: history });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
   }
-
-  const user = asUser(
-    db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim()),
-  );
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
-    res.status(401).json({ error: 'Invalid email or password' });
-    return;
-  }
-
-  const token   = signToken({ id: user.id, email: user.email, role: user.role });
-  const history = asUsers(
-    db.prepare(
-      'SELECT rating, recorded_at as date FROM rating_history WHERE user_id = ? ORDER BY recorded_at ASC',
-    ).all(user.id),
-  );
-
-  res.cookie('token', token, cookieOpts()).json({ ...toPublicUser(user), ratingHistory: history });
 });
 
 // ── POST /api/auth/logout ────────────────────────────────────────────────────
@@ -83,16 +90,19 @@ router.post('/logout', (_req: Request, res: Response): void => {
 });
 
 // ── GET /api/auth/me ─────────────────────────────────────────────────────────
-router.get('/me', requireAuth, (req: AuthRequest, res: Response): void => {
-  const user = asUser(db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id));
-  if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const user = await User.findById(req.user!.id);
+    if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
-  const history = asUsers(
-    db.prepare(
-      'SELECT rating, recorded_at as date FROM rating_history WHERE user_id = ? ORDER BY recorded_at ASC',
-    ).all(user.id),
-  );
-  res.json({ ...toPublicUser(user), ratingHistory: history });
+    const historyDocs = await RatingHistory.find({ userId: user._id }).sort({ recordedAt: 1 });
+    const history = historyDocs.map((h) => ({ rating: h.rating, date: h.recordedAt.toISOString() }));
+
+    res.json({ ...(await toPublicUser(user)), ratingHistory: history });
+  } catch (err) {
+    console.error('Auth /me error:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
 });
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -105,16 +115,17 @@ function cookieOpts() {
   };
 }
 
-function toPublicUser(u: UserRow) {
+async function toPublicUser(u: IUser) {
+  const roleDoc = await Role.findOne({ name: u.role });
   return {
-    id:          u.id,
+    id:          u._id,
     username:    u.username,
     email:       u.email,
     role:        u.role,
-    rating:      u.rating,
-    maxRating:   u.max_rating,
-    streakDays:  u.streak_days,
-    solvedCount: u.solved_count,
+    permissions: roleDoc?.permissions || [],
+    totalPoints: u.totalPoints,
+    streakDays:  u.streakDays,
+    solvedCount: u.solvedCount,
     ratingHistory: [] as { rating: number; date: string }[],
   };
 }

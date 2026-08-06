@@ -1,116 +1,172 @@
 import { Router, Response } from 'express';
-import db from '../db/database';
-import { LeaderboardRow } from '../db/types';
-import { requireAuth, requireRole, AuthRequest } from '../middleware/auth';
-
-function asLbRows(v: unknown) { return v as LeaderboardRow[]; }
-function asContest(v: unknown) {
-  return v as { start_time: string; is_leaderboard_frozen: number } | undefined;
-}
-function asCps(v: unknown)          { return v as { problem_id: string }[]; }
-function asParticipants(v: unknown) { return v as { user_id: string; username: string }[]; }
-function asSubs(v: unknown)         { return v as { verdict: string; created_at: string; is_submit: number }[]; }
-function asProblem(v: unknown)      { return v as { points: number } | undefined; }
+import { Leaderboard, IProblemBreakdown } from '../db/models/Leaderboard';
+import { Contest } from '../db/models/Contest';
+import { Problem } from '../db/models/Problem';
+import { Submission } from '../db/models/Submission';
+import { requireAuth, requirePermission, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// ── GET /api/leaderboard/:contestId ──────────────────────────────────────────
-router.get('/:contestId', requireAuth, (req: AuthRequest, res: Response): void => {
-  const rows = asLbRows(
-    db.prepare(
-      'SELECT * FROM leaderboard WHERE contest_id = ? ORDER BY total_score DESC, penalty_time_minutes ASC',
-    ).all(req.params.contestId),
-  );
+// ── GET /api/leaderboard (active contest) ──────────────────────────────────────
+router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const activeContest = await Contest.findOne().sort({ createdAt: -1 });
+    if (!activeContest) { res.json([]); return; }
 
-  res.json(
-    rows.map((r, idx) => ({
-      rank:               idx + 1,
-      userId:             r.user_id,
-      username:           r.username,
-      solvedCount:        r.solved_count,
-      totalScore:         r.total_score,
-      penaltyTimeMinutes: r.penalty_time_minutes,
-      problemBreakdown:   JSON.parse(r.problem_breakdown) as Record<
-        string,
-        { score: number; attempted: boolean; solvedTime?: string }
-      >,
-    })),
-  );
+    const docs = await Leaderboard.find({ contestId: activeContest._id }).sort({
+      totalScore: -1,
+      penaltyTimeMinutes: 1,
+    });
+
+    res.json(
+      docs.map((r, idx) => {
+        const breakdownObj: Record<string, IProblemBreakdown> = {};
+        if (r.problemBreakdown instanceof Map) {
+          r.problemBreakdown.forEach((val, key) => { breakdownObj[key] = val; });
+        } else if (r.problemBreakdown && typeof r.problemBreakdown === 'object') {
+          Object.assign(breakdownObj, r.problemBreakdown);
+        }
+        return {
+          rank: idx + 1,
+          userId: r.userId,
+          username: r.username,
+          solvedCount: r.solvedCount,
+          totalScore: r.totalScore,
+          penaltyTimeMinutes: r.penaltyTimeMinutes,
+          problemBreakdown: breakdownObj,
+        };
+      })
+    );
+  } catch (err) {
+    console.error('Fetch root leaderboard error:', err);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
 });
 
-// ── POST /api/leaderboard/:contestId/recalculate  (admin only) ───────────────
+// ── GET /api/leaderboard/:contestId ──────────────────────────────────────────
+router.get('/:contestId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const docs = await Leaderboard.find({ contestId: req.params.contestId }).sort({
+      totalScore: -1,
+      penaltyTimeMinutes: 1,
+    });
+
+    res.json(
+      docs.map((r, idx) => {
+        // Convert Map to plain object
+        const breakdownObj: Record<string, IProblemBreakdown> = {};
+        if (r.problemBreakdown instanceof Map) {
+          r.problemBreakdown.forEach((val, key) => {
+            breakdownObj[key] = val;
+          });
+        } else if (r.problemBreakdown && typeof r.problemBreakdown === 'object') {
+          Object.assign(breakdownObj, r.problemBreakdown);
+        }
+
+        return {
+          rank: idx + 1,
+          userId: r.userId,
+          username: r.username,
+          solvedCount: r.solvedCount,
+          totalScore: r.totalScore,
+          penaltyTimeMinutes: r.penaltyTimeMinutes,
+          problemBreakdown: breakdownObj,
+        };
+      }),
+    );
+  } catch (err) {
+    console.error('Fetch leaderboard error:', err);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+// ── POST /api/leaderboard/:contestId/recalculate (admin only) ───────────────
 router.post(
   '/:contestId/recalculate',
   requireAuth,
-  requireRole('admin'),
-  (req: AuthRequest, res: Response): void => {
-    recalculateLeaderboard(req.params.contestId);
-    res.json({ ok: true });
+  requirePermission('manage_users'),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      await recalculateLeaderboard(req.params.contestId);
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('Recalculate leaderboard error:', err);
+      res.status(500).json({ error: 'Failed to recalculate leaderboard' });
+    }
   },
 );
 
-// ── Exported helper — called by the judge after each AC submission ────────────
-export function recalculateLeaderboard(contestId: string): void {
-  const contest = asContest(
-    db.prepare('SELECT start_time, is_leaderboard_frozen FROM contests WHERE id = ?').get(contestId),
-  );
-  if (!contest || contest.is_leaderboard_frozen) return;
+// ── Exported helper — called by judge after each AC submission ────────────
+export async function recalculateLeaderboard(contestId: string): Promise<void> {
+  try {
+    const contest = await Contest.findById(contestId);
+    if (!contest || contest.isLeaderboardFrozen) return;
 
-  const contestStart = new Date(contest.start_time).getTime();
-  const cps          = asCps(db.prepare(
-    'SELECT problem_id FROM contest_problems WHERE contest_id = ? ORDER BY sort_order',
-  ).all(contestId));
-  const participants = asParticipants(db.prepare(
-    'SELECT DISTINCT user_id, username FROM leaderboard WHERE contest_id = ?',
-  ).all(contestId));
+    const contestStart = contest.startTime.getTime();
+    const problemIds = contest.problemIds || [];
 
-  for (const { user_id, username } of participants) {
-    let totalScore   = 0;
-    let totalPenalty = 0;
-    let solvedCount  = 0;
-    const breakdown: Record<string, { score: number; attempted: boolean; solvedTime?: string }> = {};
+    const lbEntries = await Leaderboard.find({ contestId });
+    const participants = lbEntries.map((e) => ({ userId: e.userId, username: e.username }));
 
-    for (const { problem_id } of cps) {
-      const subs = asSubs(db.prepare(`
-        SELECT verdict, created_at, is_submit FROM submissions
-        WHERE user_id = ? AND problem_id = ? AND contest_id = ?
-        ORDER BY created_at ASC
-      `).all(user_id, problem_id, contestId));
+    for (const { userId, username } of participants) {
+      let totalScore = 0;
+      let totalPenalty = 0;
+      let solvedCount = 0;
+      const breakdown = new Map<string, IProblemBreakdown>();
 
-      if (subs.length === 0) { breakdown[problem_id] = { score: 0, attempted: false }; continue; }
+      for (const problemId of problemIds) {
+        const subs = await Submission.find({
+          userId,
+          problemId,
+          contestId,
+        }).sort({ createdAt: 1 });
 
-      breakdown[problem_id] = { score: 0, attempted: true };
-      const acSub = subs.find((s) => s.verdict === 'AC' && s.is_submit === 1);
-      if (!acSub) continue;
+        if (subs.length === 0) {
+          breakdown.set(problemId, { score: 0, attempted: false });
+          continue;
+        }
 
-      const problem = asProblem(db.prepare('SELECT points FROM problems WHERE id = ?').get(problem_id));
-      if (!problem) continue;
+        breakdown.set(problemId, { score: 0, attempted: true });
+        const acSub = subs.find((s) => s.verdict === 'AC' && s.isSubmit);
+        if (!acSub) continue;
 
-      const minutesSinceStart = Math.floor(
-        (new Date(acSub.created_at).getTime() - contestStart) / 60000,
+        const problem = await Problem.findById(problemId);
+        if (!problem) continue;
+
+        const minutesSinceStart = Math.floor(
+          (acSub.createdAt.getTime() - contestStart) / 60000,
+        );
+        const wrongAttempts = subs.filter(
+          (s) => s.verdict !== 'AC' && s.isSubmit && s.createdAt < acSub.createdAt,
+        ).length;
+
+        breakdown.set(problemId, {
+          score: problem.points,
+          attempted: true,
+          solvedTime: acSub.createdAt.toISOString(),
+        });
+        totalScore += problem.points;
+        totalPenalty += Math.max(0, minutesSinceStart) + wrongAttempts * 20;
+        solvedCount++;
+      }
+
+      await Leaderboard.findOneAndUpdate(
+        { contestId, userId },
+        {
+          $set: {
+            username,
+            solvedCount,
+            totalScore,
+            penaltyTimeMinutes: totalPenalty,
+            problemBreakdown: breakdown,
+            lastUpdated: new Date(),
+          },
+        },
+        { upsert: true },
       );
-      const wrongAttempts = subs.filter(
-        (s) => s.verdict !== 'AC' && s.is_submit === 1 &&
-               new Date(s.created_at) < new Date(acSub.created_at),
-      ).length;
-
-      breakdown[problem_id] = { score: problem.points, attempted: true, solvedTime: acSub.created_at };
-      totalScore   += problem.points;
-      totalPenalty += minutesSinceStart + wrongAttempts * 20;
-      solvedCount++;
     }
-
-    db.prepare(`
-      INSERT INTO leaderboard
-        (contest_id,user_id,username,solved_count,total_score,penalty_time_minutes,problem_breakdown,last_updated)
-      VALUES (?,?,?,?,?,?,?,datetime('now'))
-      ON CONFLICT(contest_id,user_id) DO UPDATE SET
-        solved_count         = excluded.solved_count,
-        total_score          = excluded.total_score,
-        penalty_time_minutes = excluded.penalty_time_minutes,
-        problem_breakdown    = excluded.problem_breakdown,
-        last_updated         = excluded.last_updated
-    `).run(contestId, user_id, username, solvedCount, totalScore, totalPenalty, JSON.stringify(breakdown));
+  } catch (err) {
+    console.error('recalculateLeaderboard error:', err);
   }
 }
 

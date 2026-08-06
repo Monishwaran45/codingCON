@@ -53,7 +53,7 @@ export const ContestBanner: React.FC<ContestBannerProps> = ({ contest }) => {
           )}
         </div>
 
-        {!isEnded && <ContestTimer />}
+        {!isEnded && <ContestTimer endTime={contest.endTime} durationMinutes={contest.durationMinutes} />}
       </div>
     </div>
   );

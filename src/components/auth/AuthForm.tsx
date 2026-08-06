@@ -6,8 +6,10 @@ import { useAuthStore } from '@/store/useAuthStore';
 
 export const AuthForm: React.FC = () => {
   const router = useRouter();
-  const { login, isLoading, error } = useAuthStore();
+  const { login, register, isLoading, error } = useAuthStore();
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
 
@@ -19,23 +21,30 @@ export const AuthForm: React.FC = () => {
       setLocalError('Email is required.');
       return;
     }
+    if (isRegister && !username.trim()) {
+      setLocalError('Username is required.');
+      return;
+    }
     if (!password.trim()) {
       setLocalError('Password is required.');
       return;
     }
 
     try {
-      await login(email.trim(), password);
+      if (isRegister) {
+        await register(email.trim(), username.trim(), password);
+      } else {
+        await login(email.trim(), password);
+      }
 
       const { user } = useAuthStore.getState();
-      if (user?.role === 'admin' || user?.role === 'problem_setter') {
+      if (user?.permissions?.includes('manage_problems') || user?.permissions?.includes('manage_users')) {
         router.push('/admin');
       } else {
         router.push('/problems');
       }
     } catch (err: unknown) {
-      // error is already set in useAuthStore by the login action
-      const message = err instanceof Error ? err.message : 'Sign in failed. Please try again.';
+      const message = err instanceof Error ? err.message : `${isRegister ? 'Registration' : 'Sign in'} failed. Please try again.`;
       setLocalError(message);
     }
   };
@@ -46,10 +55,10 @@ export const AuthForm: React.FC = () => {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-900">
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-            Sign in to CodingCON
+            {isRegister ? 'Create an account' : `Sign in to ${process.env.NEXT_PUBLIC_APP_SHORT_NAME || 'Assessment System'}`}
           </h2>
           <p className="text-xs text-zinc-500 mt-1">
-            Use your college email to access the assessment platform.
+            {isRegister ? 'Join the platform to participate in contests.' : 'Use your email to access the assessment platform.'}
           </p>
         </div>
 
@@ -64,12 +73,32 @@ export const AuthForm: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setLocalError(''); }}
-              placeholder="you@cit.edu"
+              placeholder="you@example.com"
               required
               autoComplete="email"
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
             />
           </div>
+
+          {isRegister && (
+            <div>
+              <label htmlFor="auth-username" className="text-[0.7rem] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
+                Username
+              </label>
+              <input
+                id="auth-username"
+                type="text"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setLocalError(''); }}
+                placeholder="johndoe"
+                required
+                autoComplete="username"
+                className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+              />
+            </div>
+          )}
+
+
 
           <div>
             <label htmlFor="auth-password" className="text-[0.7rem] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
@@ -81,7 +110,7 @@ export const AuthForm: React.FC = () => {
               value={password}
               onChange={(e) => { setPassword(e.target.value); setLocalError(''); }}
               placeholder="••••••••"
-              autoComplete="current-password"
+              autoComplete={isRegister ? "new-password" : "current-password"}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
             />
           </div>
@@ -106,19 +135,25 @@ export const AuthForm: React.FC = () => {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Signing in...
+                {isRegister ? 'Creating account...' : 'Signing in...'}
               </>
             ) : (
-              'Sign In'
+              isRegister ? 'Create Account' : 'Sign In'
             )}
           </button>
         </form>
 
-        {/* Footer note */}
-        <div className="px-6 pb-5">
-          <p className="text-[0.65rem] text-zinc-400 text-center leading-relaxed">
-            Use your CIT college email and password to sign in.
-          </p>
+        <div className="px-6 pb-5 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegister(!isRegister);
+              setLocalError('');
+            }}
+            className="text-xs text-zinc-500 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors"
+          >
+            {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </button>
         </div>
       </div>
     </div>
