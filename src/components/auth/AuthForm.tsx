@@ -21,9 +21,15 @@ export const AuthForm: React.FC = () => {
       setLocalError('Email is required.');
       return;
     }
-    if (isRegister && !username.trim()) {
-      setLocalError('Username is required.');
-      return;
+    if (isRegister) {
+      if (!email.endsWith('@citchennai.net')) {
+        setLocalError('Email must be from @citchennai.net domain.');
+        return;
+      }
+      if (!username.trim()) {
+        setLocalError('Username is required.');
+        return;
+      }
     }
     if (!password.trim()) {
       setLocalError('Password is required.');
@@ -72,13 +78,25 @@ export const AuthForm: React.FC = () => {
               id="auth-email"
               type="email"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setLocalError(''); }}
-              placeholder="you@example.com"
+              onChange={(e) => { 
+                const newEmail = e.target.value;
+                setEmail(newEmail);
+                // Auto-fill username on register if email matches pattern
+                if (isRegister && newEmail.endsWith('@citchennai.net')) {
+                  const emailPart = newEmail.replace('@citchennai.net', '');
+                  setUsername(emailPart);
+                }
+                setLocalError(''); 
+              }}
+              placeholder="yourname@citchennai.net"
               required
               autoComplete="email"
               suppressHydrationWarning
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
             />
+            {isRegister && !email.endsWith('@citchennai.net') && email.trim() && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Must be a @citchennai.net email</p>
+            )}
           </div>
 
           {isRegister && (
@@ -91,12 +109,15 @@ export const AuthForm: React.FC = () => {
                 type="text"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setLocalError(''); }}
-                placeholder="johndoe"
+                placeholder="yourname"
                 required
                 autoComplete="username"
                 suppressHydrationWarning
                 className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
               />
+              {username && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Auto-filled from email</p>
+              )}
             </div>
           )}
 
