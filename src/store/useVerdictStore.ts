@@ -61,11 +61,14 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     get().resetVerdict();
     set({ isStreaming: true, verdict: 'running' });
 
+    const { useContestStore } = await import('@/store/useContestStore');
+    const effectiveContestId = contestId || useContestStore.getState().contest?.id;
+
     const res = await fetch(`${API_BASE_URL}/submissions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ problemId, language, code, isSubmit, contestId }),
+      body: JSON.stringify({ problemId, language, code, isSubmit, contestId: effectiveContestId }),
     });
 
     if (!res.ok) {

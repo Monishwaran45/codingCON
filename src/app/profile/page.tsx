@@ -16,14 +16,25 @@ export default function ProfilePage() {
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(true);
 
   useEffect(() => {
-    async function loadSubmissions() {
+    async function loadProfileData() {
       if (!isAuthenticated) return;
       setIsLoadingSubmissions(true);
-      const s = await api.getSubmissions();
-      setSubmissions(s);
-      setIsLoadingSubmissions(false);
+      try {
+        const [s, latestUser] = await Promise.all([
+          api.getSubmissions().catch(() => []),
+          api.getProfile().catch(() => null),
+        ]);
+        setSubmissions(s);
+        if (latestUser) {
+          useAuthStore.setState({ user: latestUser });
+        }
+      } catch (err) {
+        console.error('Failed to load profile data:', err);
+      } finally {
+        setIsLoadingSubmissions(false);
+      }
     }
-    loadSubmissions();
+    loadProfileData();
   }, [isAuthenticated]);
 
   if (!isAuthenticated || !user) {
@@ -37,20 +48,31 @@ export default function ProfilePage() {
     );
   }
 
+  // Calculate solved count and points from user object and submissions list
+  const acSubmissions = submissions.filter((s) => s.verdict === 'AC');
+  const solvedProblemIds = new Set(acSubmissions.map((s) => s.problemId));
+  const computedSolvedCount = Math.max(user.solvedCount || 0, solvedProblemIds.size);
+  
+  const displayUser = {
+    ...user,
+    solvedCount: computedSolvedCount,
+    totalPoints: user.totalPoints || 0,
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 space-y-8 font-inter">
       {/* Profile Header */}
       <div className="flex items-center justify-between rounded-2xl border border-zinc-900 bg-zinc-950 p-6">
         <div className="flex items-center gap-5">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-600 font-extrabold text-2xl text-white shadow-xl shadow-cyan-500/20">
-            {user.username[0].toUpperCase()}
+            {displayUser.username[0].toUpperCase()}
           </div>
 
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-extrabold text-white">{user.username}</h1>
+              <h1 className="text-2xl font-extrabold text-white">{displayUser.username}</h1>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">{user.email} • Role: {user.role}</p>
+            <p className="text-xs text-zinc-400 mt-1">{displayUser.email} • Role: {displayUser.role}</p>
           </div>
         </div>
 
@@ -63,7 +85,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Stats Grid */}
-      <StatsOverview user={user} />
+      <StatsOverview user={displayUser} />
 
       {/* Rating Graph or Empty State */}
       {user.ratingHistory && user.ratingHistory.length > 0 ? (

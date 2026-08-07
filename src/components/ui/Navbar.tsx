@@ -25,18 +25,20 @@ const LogoIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) =
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const activeTheme = resolvedTheme || theme || 'dark';
+
   const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
+    setTheme(activeTheme === 'light' ? 'dark' : 'light');
   };
 
-  const currentTheme = mounted ? (theme as 'light' | 'dark') : 'dark';
+  const currentTheme = mounted ? (activeTheme as 'light' | 'dark') : 'dark';
 
   const isAdmin = user?.role === 'admin' || user?.role === 'problem_setter';
 
@@ -168,6 +170,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Ctrl+K Search */}
           <button
+            suppressHydrationWarning
             onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))}
             className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-all hover:shadow-sm"
           >
@@ -213,6 +216,7 @@ export const Navbar: React.FC = () => {
 
 const ThemeButton: React.FC<{ theme: 'light' | 'dark'; mounted: boolean; onToggle: () => void }> = ({ theme, mounted, onToggle }) => (
   <button
+    suppressHydrationWarning
     onClick={onToggle}
     aria-label="Toggle theme"
     className="flex items-center justify-center w-8 h-8 rounded-md border border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-colors"

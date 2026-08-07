@@ -3,6 +3,7 @@ import { Leaderboard, IProblemBreakdown } from '../db/models/Leaderboard';
 import { Contest } from '../db/models/Contest';
 import { Problem } from '../db/models/Problem';
 import { Submission } from '../db/models/Submission';
+import { User } from '../db/models/User';
 import { requireAuth, requirePermission, AuthRequest } from '../middleware/auth';
 
 const router = Router();
@@ -46,6 +47,8 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
 // ── GET /api/leaderboard/:contestId ──────────────────────────────────────────
 router.get('/:contestId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    await recalculateLeaderboard(req.params.contestId);
+
     const docs = await Leaderboard.find({ contestId: req.params.contestId }).sort({
       totalScore: -1,
       penaltyTimeMinutes: 1,
@@ -96,7 +99,7 @@ router.post(
   },
 );
 
-// ── Exported helper — called by judge after each AC submission ────────────
+// ── Exported helper — called by judge after each submission ────────────
 export async function recalculateLeaderboard(contestId: string): Promise<void> {
   try {
     const contest = await Contest.findById(contestId);
@@ -106,9 +109,25 @@ export async function recalculateLeaderboard(contestId: string): Promise<void> {
     const problemIds = contest.problemIds || [];
 
     const lbEntries = await Leaderboard.find({ contestId });
-    const participants = lbEntries.map((e) => ({ userId: e.userId, username: e.username }));
+    const submissionUserIds = await Submission.distinct('userId', {
+      $or: [
+        { contestId },
+        { createdAt: { $gte: contest.startTime, $lte: contest.endTime } },
+      ],
+    });
 
-    for (const { userId, username } of participants) {
+    const userMap = new Map<string, string>();
+    for (const e of lbEntries) {
+      userMap.set(e.userId, e.username);
+    }
+    for (const uid of submissionUserIds) {
+      if (!userMap.has(uid)) {
+        const u = await User.findById(uid).select('username');
+        if (u) userMap.set(uid, u.username);
+      }
+    }
+
+    for (const [userId, username] of Array.from(userMap.entries())) {
       let totalScore = 0;
       let totalPenalty = 0;
       let solvedCount = 0;
@@ -118,7 +137,10 @@ export async function recalculateLeaderboard(contestId: string): Promise<void> {
         const subs = await Submission.find({
           userId,
           problemId,
-          contestId,
+          $or: [
+            { contestId },
+            { createdAt: { $gte: contest.startTime, $lte: contest.endTime } },
+          ],
         }).sort({ createdAt: 1 });
 
         if (subs.length === 0) {

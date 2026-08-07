@@ -122,35 +122,35 @@ async function runJudge(job: JudgeJob): Promise<void> {
     const acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedSubmissions / totalSubmissions) * 100) : 0;
 
     await Problem.findByIdAndUpdate(job.problemId, { acceptanceRate });
+  }
 
-    if (job.contestId && job.isSubmit) {
-      await recalculateLeaderboard(job.contestId);
+  if (job.contestId && job.isSubmit) {
+    await recalculateLeaderboard(job.contestId);
 
-      const lbDocs = await Leaderboard.find({ contestId: job.contestId }).sort({
-        totalScore: -1,
-        penaltyTimeMinutes: 1,
-      });
+    const lbDocs = await Leaderboard.find({ contestId: job.contestId }).sort({
+      totalScore: -1,
+      penaltyTimeMinutes: 1,
+    });
 
-      await publishSocketEvent(`contest:${job.contestId}`, 'leaderboard:update', 
-        lbDocs.map((r, idx) => {
-          const breakdownObj: Record<string, IProblemBreakdown> = {};
-          if (r.problemBreakdown instanceof Map) {
-            r.problemBreakdown.forEach((val, key) => { breakdownObj[key] = val; });
-          } else if (r.problemBreakdown && typeof r.problemBreakdown === 'object') {
-            Object.assign(breakdownObj, r.problemBreakdown);
-          }
-          return {
-            rank: idx + 1,
-            userId: r.userId,
-            username: r.username,
-            solvedCount: r.solvedCount,
-            totalScore: r.totalScore,
-            penaltyTimeMinutes: r.penaltyTimeMinutes,
-            problemBreakdown: breakdownObj,
-          };
-        })
-      );
-    }
+    await publishSocketEvent(`contest:${job.contestId}`, 'leaderboard:update', 
+      lbDocs.map((r, idx) => {
+        const breakdownObj: Record<string, IProblemBreakdown> = {};
+        if (r.problemBreakdown instanceof Map) {
+          r.problemBreakdown.forEach((val, key) => { breakdownObj[key] = val; });
+        } else if (r.problemBreakdown && typeof r.problemBreakdown === 'object') {
+          Object.assign(breakdownObj, r.problemBreakdown);
+        }
+        return {
+          rank: idx + 1,
+          userId: r.userId,
+          username: r.username,
+          solvedCount: r.solvedCount,
+          totalScore: r.totalScore,
+          penaltyTimeMinutes: r.penaltyTimeMinutes,
+          problemBreakdown: breakdownObj,
+        };
+      })
+    );
   }
 
   await publishSocketEvent(room, 'submission:done', {

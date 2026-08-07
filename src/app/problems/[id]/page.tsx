@@ -56,8 +56,15 @@ export default function ProblemDetailPage() {
         return;
       }
       setIsLoading(true);
-      const data = await api.getProblemById(problemId);
+      const [data, activeContest] = await Promise.all([
+        api.getProblemById(problemId),
+        api.getActiveContest().catch(() => null),
+      ]);
       setProblem(data);
+      if (activeContest) {
+        const { useContestStore } = await import('@/store/useContestStore');
+        useContestStore.getState().setContest(activeContest);
+      }
       setIsLoading(false);
       resetVerdict();
     }
@@ -117,7 +124,7 @@ export default function ProblemDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ problemId: problem._id, language, code, stdin: input }),
+        body: JSON.stringify({ problemId: problem.id, language, code, stdin: input }),
       });
       const data = await res.json();
       if (!res.ok) {

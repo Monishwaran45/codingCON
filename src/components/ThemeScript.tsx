@@ -8,7 +8,8 @@ export function ThemeScript() {
   const themeScript = `
     (function() {
       try {
-        const theme = localStorage.getItem('codingcon-theme') || 'dark';
+        let theme = localStorage.getItem('codingcon-theme') || 'dark';
+        theme = theme.replace(/^"(.*)"$/, '$1');
         if (theme === 'dark') {
           document.documentElement.classList.add('dark');
         } else {

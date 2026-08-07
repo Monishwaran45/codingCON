@@ -117,15 +117,33 @@ function cookieOpts() {
 
 async function toPublicUser(u: IUser) {
   const roleDoc = await Role.findOne({ name: u.role });
+  const { Submission } = await import('../db/models/Submission');
+  const { Problem } = await import('../db/models/Problem');
+
+  const acSubmissions = await Submission.find({ userId: u._id, verdict: 'AC' }).select('problemId');
+  const solvedProblemIds = Array.from(new Set(acSubmissions.map((s) => s.problemId)));
+  const solvedCount = Math.max(u.solvedCount || 0, solvedProblemIds.length);
+
+  let totalPoints = u.totalPoints || 0;
+  if (solvedProblemIds.length > 0) {
+    const solvedProblems = await Problem.find({ _id: { $in: solvedProblemIds } }).select('points');
+    const computedPoints = solvedProblems.reduce((sum, p) => sum + (p.points || 0), 0);
+    totalPoints = Math.max(totalPoints, computedPoints);
+  }
+
+  if (u.solvedCount !== solvedCount || u.totalPoints !== totalPoints) {
+    await User.findByIdAndUpdate(u._id, { solvedCount, totalPoints });
+  }
+
   return {
     id:          u._id,
     username:    u.username,
     email:       u.email,
     role:        u.role,
     permissions: roleDoc?.permissions || [],
-    totalPoints: u.totalPoints,
+    totalPoints,
     streakDays:  u.streakDays,
-    solvedCount: u.solvedCount,
+    solvedCount,
     ratingHistory: [] as { rating: number; date: string }[],
   };
 }

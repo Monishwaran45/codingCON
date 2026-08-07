@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { Submission, ISubmissionResult } from '../db/models/Submission';
 import { Problem, ITestCase } from '../db/models/Problem';
 import { User } from '../db/models/User';
-import { Leaderboard, IProblemBreakdown } from '../db/models/Leaderboard';
+import { Contest } from '../db/models/Contest';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { runCode } from '../judge/runner';
 import { normaliseOutput } from '../judge/normalise';
@@ -105,12 +105,25 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    let effectiveContestId = contestId ?? null;
+    if (!effectiveContestId) {
+      const now = new Date();
+      const activeContest = await Contest.findOne({
+        startTime: { $lte: now },
+        endTime: { $gte: now },
+        problemIds: problemId,
+      });
+      if (activeContest) {
+        effectiveContestId = activeContest._id;
+      }
+    }
+
     const id = uuid();
     await Submission.create({
       _id: id,
       problemId,
       userId: req.user!.id,
-      contestId: contestId ?? null,
+      contestId: effectiveContestId,
       language,
       code,
       verdict: 'running',
@@ -126,7 +139,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     await publishJudgeJob({
       submissionId: id,
       userId: req.user!.id,
-      contestId: contestId ?? null,
+      contestId: effectiveContestId,
       problemId,
       language,
       code,

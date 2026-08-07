@@ -15,6 +15,7 @@ export interface User {
   streakDays: number;
   solvedCount: number;
   ratingHistory: { date: string; rating: number }[];
+  rating?: number;
 }
 
 export interface TestCase {

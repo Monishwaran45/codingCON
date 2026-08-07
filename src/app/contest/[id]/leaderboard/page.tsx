@@ -46,9 +46,9 @@ export default function LeaderboardPage() {
     setIsLoading(true);
     loadData();
 
-    // Fallback polling every 60 seconds to ensure it stays in sync
+    // Fallback live polling every 5 seconds to ensure it stays in sync
     // in case the WebSocket connection drops or isn't active
-    const interval = setInterval(loadData, 60000);
+    const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, [contestId, setLeaderboard, setContest]);
 

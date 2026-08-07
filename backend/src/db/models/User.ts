@@ -9,6 +9,8 @@ export interface IUser {
   totalPoints: number;
   streakDays: number;
   solvedCount: number;
+  rating?: number;
+  maxRating?: number;
   createdAt: Date;
 }
 
@@ -26,6 +28,8 @@ const userSchema = new Schema<IUser>(
     totalPoints: { type: Number, default: 0 },
     streakDays: { type: Number, default: 0 },
     solvedCount: { type: Number, default: 0 },
+    rating: { type: Number, default: 1500 },
+    maxRating: { type: Number, default: 1500 },
     createdAt: { type: Date, default: Date.now },
   },
   {

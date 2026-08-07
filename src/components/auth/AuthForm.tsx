@@ -63,7 +63,7 @@ export const AuthForm: React.FC = () => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4" suppressHydrationWarning>
           <div>
             <label htmlFor="auth-email" className="text-[0.7rem] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
               Email Address
@@ -76,6 +76,7 @@ export const AuthForm: React.FC = () => {
               placeholder="you@example.com"
               required
               autoComplete="email"
+              suppressHydrationWarning
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
             />
           </div>
@@ -93,12 +94,11 @@ export const AuthForm: React.FC = () => {
                 placeholder="johndoe"
                 required
                 autoComplete="username"
+                suppressHydrationWarning
                 className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
               />
             </div>
           )}
-
-
 
           <div>
             <label htmlFor="auth-password" className="text-[0.7rem] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider block mb-1.5">
@@ -111,6 +111,7 @@ export const AuthForm: React.FC = () => {
               onChange={(e) => { setPassword(e.target.value); setLocalError(''); }}
               placeholder="••••••••"
               autoComplete={isRegister ? "new-password" : "current-password"}
+              suppressHydrationWarning
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3.5 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
             />
           </div>
@@ -127,6 +128,7 @@ export const AuthForm: React.FC = () => {
           <button
             type="submit"
             disabled={isLoading}
+            suppressHydrationWarning
             className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-sm py-2.5 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isLoading ? (
@@ -146,6 +148,7 @@ export const AuthForm: React.FC = () => {
         <div className="px-6 pb-5 text-center">
           <button
             type="button"
+            suppressHydrationWarning
             onClick={() => {
               setIsRegister(!isRegister);
               setLocalError('');

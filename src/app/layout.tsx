@@ -27,15 +27,14 @@ export default function RootLayout({
       </head>
       <body
         className="min-h-screen bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 font-sans antialiased flex flex-col selection:bg-blue-500 selection:text-white dark:selection:text-zinc-950 transition-colors duration-150"
+        suppressHydrationWarning
       >
         <ThemeProvider 
           attribute="class" 
           defaultTheme="dark" 
           enableSystem={false}
           storageKey="codingcon-theme"
-          enableTransitionOnChange={true}
           disableTransitionOnChange={false}
-          forcedTheme={undefined}
         >
           <Navbar />
           <CommandPalette />
