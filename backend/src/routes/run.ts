@@ -1,8 +1,8 @@
 /**
  * POST /api/run
  *
- * Runs user code against custom stdin immediately (no queue, no DB write).
- * Used exclusively by the "Custom Input" panel in the frontend editor.
+ * Runs user code against custom stdin safely using bounded async execution queues.
+ * Used by the "Custom Input" panel in the frontend editor.
  *
  * Body: { problemId, language, code, stdin }
  * Returns: { stdout, stderr, executionTimeMs, exitCode, timedOut }
@@ -10,11 +10,35 @@
 
 import { Router, Response } from 'express';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { runCode } from '../judge/runner';
+import { runCode, RunResult } from '../judge/runner';
 
 const router = Router();
 
 const SUPPORTED_LANGUAGES = ['python', 'javascript', 'cpp', 'java'];
+const MAX_CONCURRENT_RUNS = 5;
+let activeRunCount = 0;
+const runQueue: Array<() => void> = [];
+
+async function acquireRunSlot(): Promise<void> {
+  if (activeRunCount < MAX_CONCURRENT_RUNS) {
+    activeRunCount++;
+    return;
+  }
+  return new Promise((resolve) => {
+    runQueue.push(() => {
+      activeRunCount++;
+      resolve();
+    });
+  });
+}
+
+function releaseRunSlot(): void {
+  activeRunCount--;
+  const next = runQueue.shift();
+  if (next) {
+    next();
+  }
+}
 
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -39,7 +63,15 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    const result = await runCode(language, code, stdin);
+    // Acquire execution slot from queue controller
+    await acquireRunSlot();
+    let result: RunResult;
+
+    try {
+      result = await runCode(language, code, stdin);
+    } finally {
+      releaseRunSlot();
+    }
 
     res.json({
       stdout:          result.stdout,
@@ -55,3 +87,4 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 });
 
 export default router;
+

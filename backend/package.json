@@ -17,25 +17,34 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "rootDir": ".",
-    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {
-      "^.+\\.tsx?$": ["ts-jest", {
-        "tsconfig": "<rootDir>/__tests__/tsconfig.json"
-      }]
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/__tests__/tsconfig.json"
+        }
+      ]
     },
     "testTimeout": 30000,
-    "setupFiles": ["<rootDir>/__tests__/setup.ts"]
+    "setupFiles": [
+      "<rootDir>/__tests__/setup.ts"
+    ]
   },
   "dependencies": {
+    "@types/helmet": "^0.0.48",
     "amqplib": "^2.0.1",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb-memory-server": "^11.2.0",
     "mongoose": "^9.9.1",

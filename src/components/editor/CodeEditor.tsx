@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import Editor from '@monaco-editor/react';
+import Editor, { OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '@/store/useEditorStore';
 
 interface CodeEditorProps {
   height?: string;
+  onRun?: () => void;
+  onSubmit?: () => void;
 }
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%' }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%', onRun, onSubmit }) => {
   const { language, code, setCode, autosave } = useEditorStore();
 
   // Periodic silent background autosave
@@ -19,6 +21,28 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%' }) => {
     return () => clearInterval(timer);
   }, [autosave]);
 
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    // Add Ctrl+Enter (Cmd+Enter on Mac) for Code Submission
+    editor.addAction({
+      id: 'submit-code',
+      label: 'Submit Solution',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
+      run: () => {
+        if (onSubmit) onSubmit();
+      },
+    });
+
+    // Add Ctrl+' for Custom Input Run
+    editor.addAction({
+      id: 'run-custom-code',
+      label: 'Run Custom Test',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Quote],
+      run: () => {
+        if (onRun) onRun();
+      },
+    });
+  };
+
   return (
     <div className="w-full h-full bg-[#1e1e1e]">
       <Editor
@@ -26,6 +50,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%' }) => {
         language={language === 'cpp' ? 'cpp' : language}
         theme="vs-dark"
         value={code}
+        onMount={handleEditorMount}
         onChange={(value) => setCode(value || '')}
         options={{
           fontSize: 14,
@@ -69,3 +94,4 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ height = '100%' }) => {
     </div>
   );
 };
+

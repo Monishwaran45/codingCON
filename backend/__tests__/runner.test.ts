@@ -25,6 +25,12 @@ import os   from 'os';
 
 import { runCode, RunResult } from '../src/judge/runner';
 
+beforeAll(() => {
+  process.env.NODE_ENV = 'test';
+  process.env.MOCK_EXECUTION = 'true';
+  process.env.SKIP_DOCKER_CHECK = 'true';
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────

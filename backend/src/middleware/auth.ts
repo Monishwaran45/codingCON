@@ -13,12 +13,51 @@ export interface AuthRequest extends Request {
   };
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim() === '' || secret === 'changeme') {
+    if (process.env.NODE_ENV === 'test') {
+      return 'test-secret-key-1234567890-must-be-long-enough';
+    }
+    console.error('❌ FATAL: JWT_SECRET environment variable is missing or insecure default ("changeme").');
+    throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable must be explicitly defined and secure.');
+  }
+  return secret;
+}
+
+const JWT_SECRET = getJwtSecret();
+const REFRESH_SECRET = process.env.REFRESH_TOKEN_SECRET || `${JWT_SECRET}_refresh`;
+
+export interface CookieOptions {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'lax' | 'strict' | 'none';
+  maxAge?: number;
+}
+
+export const SECURE_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
 
 export function signToken(payload: { id: string; email: string; role: string }): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m', // 15 minute access token
   } as jwt.SignOptions);
+}
+
+export function signRefreshToken(payload: { id: string }): string {
+  const refreshSecret = process.env.REFRESH_TOKEN_SECRET || `${getJwtSecret()}_refresh`;
+  return jwt.sign(payload, refreshSecret, {
+    expiresIn: '7d',
+  } as jwt.SignOptions);
+}
+
+export function verifyRefreshToken(token: string): { id: string } {
+  const refreshSecret = process.env.REFRESH_TOKEN_SECRET || `${getJwtSecret()}_refresh`;
+  return jwt.verify(token, refreshSecret) as { id: string };
 }
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -33,7 +72,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as {
+    const decoded = jwt.verify(token, getJwtSecret()) as {
       id: string; email: string; role: string;
     };
 
@@ -42,7 +81,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 
     if (!userDoc) {
       // User was deleted or DB was wiped — clear the stale cookie
-      res.clearCookie('token');
+      res.clearCookie('token', SECURE_COOKIE_OPTIONS);
       res.status(401).json({ error: 'Session expired, please log in again' });
       return;
     }
@@ -58,7 +97,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     };
     next();
   } catch {
-    res.clearCookie('token');
+    res.clearCookie('token', SECURE_COOKIE_OPTIONS);
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }

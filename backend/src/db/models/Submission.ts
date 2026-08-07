@@ -69,4 +69,9 @@ const submissionSchema = new Schema<ISubmission>(
   },
 );
 
+submissionSchema.index({ userId: 1, createdAt: -1 });
+submissionSchema.index({ problemId: 1, userId: 1, verdict: 1 });
+submissionSchema.index({ contestId: 1, createdAt: -1 });
+
 export const Submission = model<ISubmission>('Submission', submissionSchema);
+

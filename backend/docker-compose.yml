@@ -6,34 +6,49 @@ services:
     container_name: codingcon_mongodb
     restart: always
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
     container_name: codingcon_redis
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: codingcon_rabbitmq
     restart: always
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  fastapi_backend:
+  backend_api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: codingcon_fastapi
+    container_name: codingcon_backend
     restart: always
     ports:
       - "4000:4000"
@@ -41,12 +56,17 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/codingcon
       - REDIS_URL=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - JWT_SECRET=codingcon_super_secret_jwt_key_change_in_prod
+      - JWT_SECRET=codingcon_production_hardened_jwt_secret_key_987654321
       - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
   judge_worker:
     build:
@@ -54,20 +74,24 @@ services:
       dockerfile: Dockerfile
     container_name: codingcon_worker
     restart: always
-    command: python -m app.worker.judge_worker
+    command: npm run worker
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/codingcon
       - REDIS_URL=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - JUDGE_USE_DOCKER=true
+      - JWT_SECRET=codingcon_production_hardened_jwt_secret_key_987654321
     depends_on:
-      - mongodb
-      - redis
-      - rabbitmq
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   mongodb_data:
   redis_data:
   rabbitmq_data:
+
