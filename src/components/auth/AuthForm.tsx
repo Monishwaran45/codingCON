@@ -84,7 +84,9 @@ export const AuthForm: React.FC = () => {
                 // Auto-fill username on register if email matches pattern
                 if (isRegister && newEmail.endsWith('@citchennai.net')) {
                   const emailPart = newEmail.replace('@citchennai.net', '');
-                  setUsername(emailPart);
+                  // Extract just the name before the first dot
+                  const namePart = emailPart.split('.')[0];
+                  setUsername(namePart);
                 }
                 setLocalError(''); 
               }}
