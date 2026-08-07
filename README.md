@@ -1,308 +1,183 @@
-# 🚀 CodingCON — Real-Time Online Judge & Competitive Programming Platform
+# CodingCON
 
-CodingCON is an enterprise-grade, real-time online judge and competitive programming assessment platform built for universities, coding contests, and technical assessments. Inspired by platforms like LeetCode and Codeforces, CodingCON provides an interactive web workspace, real-time WebSocket leaderboards, and isolated multi-language Docker execution sandbox.
+CodingCON is a web-based competitive-programming and technical-assessment platform. It provides a Next.js workspace, an Express and Socket.IO API, asynchronous judging, contest leaderboards, and isolated Docker execution for Python, JavaScript, C++, and Java submissions.
 
----
+## Architecture
 
-## 🟢 Current System Status
+```text
+Browser
+  -> Next.js application (port 3000)
+  -> Express API and Socket.IO gateway (port 4000)
+  -> RabbitMQ judge queue
+  -> Dedicated judge worker with Docker socket access
+  -> One restricted Docker container per test case
 
-| Component | Port / URI | Tech Stack | Status |
-| :--- | :--- | :--- | :---: |
-| **Frontend Web App** | `http://localhost:3000` | Next.js 16 (Turbopack) + React 19 | 🟢 **Active** |
-| **Backend API Gateway** | `http://localhost:4000/api` | Express.js + Socket.IO | 🟢 **Active** |
-| **Judge Worker Process** | Background Task | Node.js + TypeScript Worker | 🟢 **Active** |
-| **Database** | MongoDB Atlas / Memory | Mongoose ORM | 🟢 **Connected** |
-| **Message Queue** | `judge_queue` & `socket_events_queue` | RabbitMQ (amqplib) | 🟢 **Connected** |
-| **Execution Sandbox** | Docker Engine | Python, JS, C++, Java Images | 🟢 **Ready** |
-
----
-
-## ✨ Key Features
-
-### ⚡ Isolated Multi-Language Docker Sandbox
-- **Supported Languages**: 
-  - **Python 3.11** (`python:3.11-alpine`)
-  - **JavaScript** (`node:20-alpine`)
-  - **C++ 17** (`gcc:13` with `g++ -O2 -std=c++17`)
-  - **Java 21** (`eclipse-temurin:21-jdk-alpine` with `javac`)
-- **Dynamic Java Class Resolution**: Automatically parses source code for `public class Main`, `public class Solution`, or custom class names, avoiding Java compilation filename mismatches.
-- **Secure Sandbox Environment**: Configured with strict CPU limits (`0.5 cpus`), memory limits (`256MB`), process limits (`ulimit nproc=64`), no network access (`--network none`), and isolated read-write temporary directories.
-
-### 📊 Real-Time Live Leaderboard & WebSocket Sync
-- **Socket.IO Integration**: Submissions and verdicts are broadcast live across connected clients.
-- **Penalty Time Calculation**: Dynamically computes solve times and penalty minutes for incorrect attempts.
-- **60-Second Fallback Polling**: Ensures standings remain 100% in sync even if WebSocket connections drop.
-
-### 🎯 LeetCode-Style Error Visualizer & Verdict Engine
-- **Rich Error Reporting**: Surfaces line-level compiler errors, stack traces, runtime errors (`RE`), time limit exceeded (`TLE`), and memory limit exceeded (`MLE`).
-- **Normalized Comparison Engine**: Strips carriage returns (`\r\n`) and trims whitespace to prevent false `Wrong Answer` verdicts across operating systems.
-- **Interactive Diff Viewer**: Allows users to inspect expected vs. actual outputs for sample test cases.
-
-### 🏆 Contest System & Automated Archive Release
-- **Contest Countdown Timer**: Interactive countdown timer (`HH:MM:SS`) on contest headers and standings pages.
-- **Problem Archiving**: Contest problems remain hidden from the main Problem Archive until the contest timer naturally expires.
-- **Live Announcements**: Real-time broadcasts for contest clarifications and updates.
-
-### 👤 Dynamic User Profiles & Points System
-- **Total Points Counter**: Accumulates points based on problem difficulty upon first successful `AC` verdict.
-- **Submission History**: Complete timeline of verdicts, runtimes, memory usage, and submitted code.
-- **Streak & Solved Stats**: Tracks active streak days and unique solved problems count.
-
-### 🔑 Role-Based Access Control (RBAC) & Admin Portal
-- **Database-Driven Roles**: Dynamic permissions stored in MongoDB (`admin`, `problem_setter`, `student`).
-- **Admin Dashboard**: Full CRUD interface for creating problems, adding test cases, managing contests, and post announcements.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technologies Used |
-| :--- | :--- |
-| **Frontend** | Next.js 16 (App Router + Turbopack), React 19, TypeScript, TailwindCSS, Framer Motion, Monaco Code Editor, `next-themes` |
-| **Backend** | Express.js, Node.js, TypeScript, Mongoose (MongoDB ORM), Socket.IO, JWT Auth |
-| **Queue & Worker** | RabbitMQ (amqplib), Asynchronous Worker Queue Process |
-| **Code Judge** | Docker Engine (isolated container per submission), Child Process Runner |
-
----
-
-## 🏗️ System Architecture
-
-```mermaid
-flowchart TD
-    User["👤 User Browser / Client"] -->|HTTP / WebSockets| Frontend["🌐 Next.js Frontend (Port 3000)"]
-    Frontend -->|API Rewrites / WS Proxy| Gateway["🔌 Express API Gateway (Port 4000)"]
-    
-    Gateway -->|Auth & Data| Mongo[("🍃 MongoDB Database")]
-    Gateway -->|Enqueue Execution Job| MQ["🐇 RabbitMQ (judge_queue)"]
-    
-    MQ -->|Consume Job| Worker["⚙️ Judge Worker Process"]
-    Worker -->|Execute Code in Isolated Container| Docker["🐳 Docker Sandbox Containers\n(Python / JS / C++ / Java)"]
-    
-    Docker -->|Return Verdict & Logs| Worker
-    Worker -->|Update Verdict & Stats| Mongo
-    Worker -->|Publish Socket Event| MQ
-    MQ -->|Socket Event Consumer| Gateway
-    Gateway -->|Broadcast Live Verdict| User
+MongoDB stores users, problems, contests, and submissions.
+Redis is available to the deployment for caching and coordination.
 ```
 
----
+The production backend is the TypeScript application in `backend/src`. The Python files in `backend/app` are legacy code and are not started by the current Docker image or Compose configuration.
 
-## 🐳 Docker Setup & Configuration
+## Features
 
-Docker Engine is required to execute user-submitted code in isolated containers.
+- Account registration and login using HTTP-only JWT cookies
+- Role and permission model for students, problem setters, and administrators
+- Problem bank with difficulty, tag, and search filters
+- Monaco editor with starter templates for Python, JavaScript, C++, and Java
+- Run mode for sample tests, custom-input execution, and full asynchronous submission judging
+- Compiler, runtime, wrong-answer, and time-limit verdict reporting
+- Real-time progress, contest announcements, and leaderboard updates through Socket.IO
+- Contest scoring based on solved-problem points and ICPC-style penalty time
+- Administration workflows for problems, contests, announcements, and leaderboard recalculation
+- Dark and light themes, command palette navigation, and local editor state
 
-### 1. Install & Start Docker
-- Ensure **Docker Desktop** (Windows/macOS) or **Docker Engine** (Linux) is installed and running.
-- Verify Docker is active in your terminal:
-  ```bash
-  docker info
-  ```
+## Technology
 
-### 2. Pre-Pull Execution Sandbox Images
-To avoid execution timeouts during initial submission runs, pre-pull the execution images for each language:
+| Area | Implementation |
+| --- | --- |
+| Web application | Next.js 16, React 19, TypeScript, Tailwind CSS |
+| Editor | Monaco Editor |
+| API | Express 4 and Socket.IO |
+| Persistence | MongoDB with Mongoose |
+| Messaging | RabbitMQ with an in-memory development fallback |
+| Judge | Dedicated Node.js worker and Docker containers |
+| Authentication | JWT, bcryptjs, HTTP-only cookies |
+| Quality automation | Jest and GitHub Actions |
+
+## Requirements
+
+- Node.js 20 or later
+- npm
+- Docker Engine or Docker Desktop for judging and Compose deployment
+- MongoDB, RabbitMQ, and Redis, or Docker Compose to run them
+
+## Local development
+
+Install the frontend dependencies from the repository root:
 
 ```bash
-# Python 3.11 Execution Environment
-docker pull python:3.11-alpine
-
-# JavaScript (Node.js 20) Execution Environment
-docker pull node:20-alpine
-
-# C++ (GCC 13) Execution Environment
-docker pull gcc:13
-
-# Java 21 (Temurin JDK) Execution Environment
-docker pull eclipse-temurin:21-jdk-alpine
-```
-
----
-
-## 🐇 RabbitMQ Setup & Configuration
-
-RabbitMQ handles asynchronous submission queuing between the API Gateway and the Judge Worker process.
-
-### Option A: Run RabbitMQ via Docker (Recommended)
-You can launch a local RabbitMQ container with the management interface enabled:
-
-```bash
-docker run -d \
-  --name codingcon-rabbitmq \
-  -p 5672:5672 \
-  -p 15672:15672 \
-  rabbitmq:3-management
-```
-- **AMQP Protocol Port**: `5672`
-- **Management Web UI**: `http://localhost:15672` (default login: `guest` / `guest`)
-
-### Option B: CloudAMQP (Hosted RabbitMQ)
-If using a managed cloud instance (e.g. CloudAMQP):
-1. Create a free instance on [CloudAMQP](https://www.cloudamqp.com/).
-2. Copy your `amqps://...` connection URL.
-3. Add `RABBITMQ_URL` to your `backend/.env` file:
-   ```env
-   RABBITMQ_URL=amqps://username:password@hostname/vhost
-   ```
-
----
-
-## 🚀 Step-by-Step Installation & Running Guide
-
-### 1. Clone & Install Dependencies
-```bash
-git clone https://github.com/Monishwaran45/codingCON.git
-cd codingCON
-
-# Install Frontend dependencies
 npm install
+```
 
-# Install Backend dependencies
+Install the backend dependencies:
+
+```bash
 cd backend
 npm install
 ```
 
-### 2. Environment Variables Setup
-Create a `.env` file inside `backend/.env`:
+Set backend environment variables in `backend/.env`:
 
-```env
+```dotenv
 PORT=4000
-NODE_ENV=development
-
-# JWT Secret
-JWT_SECRET=codingcon_super_secret_jwt_key
-
-# MongoDB Connection String
-MONGODB_URI=mongodb+srv://monishlegend1780_db_user:6yBIRY2LLGfa2PLP@cluster0.juix7su.mongodb.net/codingcon?appName=Cluster0
-
-# Code Execution Engine (Docker enabled)
-JUDGE_USE_DOCKER=true
+MONGODB_URI=mongodb://127.0.0.1:27017/codingcon
+RABBITMQ_URL=amqp://guest:guest@127.0.0.1:5672/
+JWT_SECRET=replace-with-a-long-random-secret
+CORS_ORIGIN=http://localhost:3000
 JUDGE_TIMEOUT_MS=10000
 JUDGE_MEMORY_MB=256
-
-# RabbitMQ Connection String
-RABBITMQ_URL=amqp://localhost:5672
 ```
 
-### 3. Running the Application Processes
+Run the services in separate terminals:
 
-Open 3 terminal windows to run the complete platform:
-
-#### Terminal 1 — Express Backend API Gateway (Port 4000)
 ```bash
-cd backend
+# Repository root: frontend
 npm run dev
-```
 
-#### Terminal 2 — Asynchronous Judge Worker Process
-```bash
-cd backend
-npm run worker
-```
-
-#### Terminal 3 — Next.js Frontend Application (Port 3000)
-```bash
-# From root codingCON folder
+# backend/: API and Socket.IO gateway
 npm run dev
+
+# backend/: asynchronous judge worker
+npm run worker:dev
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** in your browser!
+The frontend is available at `http://localhost:3000` and the API at `http://localhost:4000`.
 
----
+The judge worker requires access to a running Docker Engine. Do not run the API process with Docker-socket access.
 
-## 📁 Directory Structure
+## Docker Compose deployment
 
-```
-codingCON/
-├── backend/                  # Express API Gateway & Judge Engine
-│   ├── src/
-│   │   ├── db/               # Database Connection & Mongoose Schemas (User, Problem, Contest, Leaderboard)
-│   │   ├── judge/            # Docker & Native Code Execution Runner
-│   │   ├── middleware/       # JWT Auth & Role-Based Access Control Middleware
-│   │   ├── queue/            # RabbitMQ Publisher & Consumer Logic
-│   │   ├── routes/           # REST API Route Handlers (Auth, Problems, Contests, Submissions, Leaderboard, Profile)
-│   │   ├── socket/           # Socket.IO Gateway Setup
-│   │   ├── index.ts          # Express Server Entry Point
-│   │   └── worker.ts         # Asynchronous Submission Worker Engine
-│   └── package.json
-│
-├── src/                      # Next.js 16 Frontend (App Router)
-│   ├── app/                  # App Router Pages & API Proxies
-│   │   ├── admin/            # Admin Dashboard, Problem Creation, Contest Management
-│   │   ├── contest/          # Contest Workspace & Live Leaderboard Standings
-│   │   ├── problems/         # Problem Archive & Monaco Editor Workspace
-│   │   ├── profile/          # User Profile, Total Points, & Submission History
-│   │   └── layout.tsx        # Global Layout with ThemeProvider & Navbar
-│   ├── components/           # UI Components (Editor, Verdict, Contest, Profile, Leaderboard)
-│   ├── hooks/                # Custom React Hooks (Auth, WebSockets, Socket Listeners)
-│   ├── lib/                  # API Client, Fonts, Utilities
-│   ├── store/                # Zustand Global State Management
-│   └── types/                # TypeScript Interfaces & Types
-│
-├── next.config.ts            # Turbopack & API Proxy Rewrites Configuration
-└── README.md
+The Compose configuration is in `backend/docker-compose.yml`. It starts MongoDB, Redis, RabbitMQ, the API, and the judge worker. The Docker socket is mounted only into the worker because it launches the short-lived judge containers.
+
+From `backend/`, provide a high-entropy secret and start the stack:
+
+```bash
+JWT_SECRET="replace-with-a-long-random-secret" docker compose up --build
 ```
 
----
+Optional configuration:
 
-## 📑 API Endpoint Summary
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `JWT_SECRET` | Yes | Signing key for API authentication tokens. Never commit this value. |
+| `CORS_ORIGIN` | No | Allowed frontend origin. Defaults to `http://localhost:3000`. |
+| `JUDGE_TIMEOUT_MS` | No | Maximum wall-clock execution time per test case. Defaults to 10000. |
+| `JUDGE_MEMORY_MB` | No | Docker memory cap per judge container. Defaults to 256. |
+| `MONGODB_URI` | No | MongoDB connection string. |
+| `RABBITMQ_URL` | No | RabbitMQ connection string. |
 
-| Method | Endpoint | Access Level | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Public | Register a new user (defaults to `student` role) |
-| `POST` | `/api/auth/login` | Public | Authenticate user and receive HTTP-only cookie token |
-| `GET` | `/api/auth/me` | Authenticated | Fetch authenticated user details & permissions |
-| `GET` | `/api/problems` | Authenticated | List all active problems (excludes active contest problems) |
-| `GET` | `/api/problems/:id` | Authenticated | Fetch problem description & sample test cases |
-| `POST` | `/api/problems` | Admin / Setter | Create a new problem with test cases |
-| `GET` | `/api/contest` | Authenticated | List all contests |
-| `GET` | `/api/contest/:id` | Authenticated | Fetch contest details & problem set |
-| `GET` | `/api/leaderboard/:contestId` | Authenticated | Fetch live contest standings |
-| `POST` | `/api/submissions` | Authenticated | Submit code for execution in Docker sandbox |
-| `GET` | `/api/profile` | Authenticated | Fetch user points, solved count, and submission history |
+For a separately deployed frontend, set `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_WS_BASE_URL` to the public backend endpoints before building the Next.js application.
 
----
+## Judge security model
 
-## 📜 License
+Each execution uses a disposable language image and applies the following restrictions:
 
-Distributed under the MIT License. See `LICENSE` for more information.
+- Network disabled
+- Read-only container root filesystem
+- Read-only input mount
+- Writable, size-limited tmpfs work and temporary directories
+- Unprivileged execution user
+- Dropped Linux capabilities and no-new-privileges
+- CPU, memory, PID, and file-descriptor limits
+- One-megabyte process-output buffer limit
 
+The worker is the only service allowed to access the Docker socket. Keep it isolated from the API and do not expose the socket to clients or other application containers.
 
----
+## API overview
 
-## 🎨 Dark/Light Mode Theme System (v2.1)
+All routes are under `/api`. Protected endpoints accept the HTTP-only `token` cookie or a bearer token.
 
-### Overview
-CodingCON features a fully functional dark/light mode theme toggle integrated with Tailwind CSS and `next-themes`.
+| Area | Endpoints |
+| --- | --- |
+| Authentication | `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
+| Problems | `GET /problems`, `GET /problems/:id`, `POST /problems`, `PATCH /problems/:id`, `DELETE /problems/:id` |
+| Contests | `GET /contest`, `GET /contest/active`, `GET /contest/:id`, `POST /contest`, announcements and leaderboard-freeze routes |
+| Submissions | `POST /submissions`, `GET /submissions`, `GET /submissions/:id` |
+| Custom execution | `POST /run` |
+| Leaderboards | `GET /leaderboard`, `GET /leaderboard/:contestId`, `POST /leaderboard/:contestId/recalculate` |
+| Profile and roles | `GET /profile`, `GET /roles` |
+| Operations | `GET /health` |
 
-### How It Works
-1. **Theme Provider**: `next-themes` package manages theme state using the `class` strategy
-2. **Persistence**: Theme preference is stored in browser's `localStorage` under key `codingcon-theme`
-3. **Early Script**: `ThemeScript` component injects a script that runs before page render to prevent flash of unstyled content (FOUC)
-4. **Configuration**: Tailwind dark mode uses the `class` selector (adds `dark` class to `<html>`)
+`POST /submissions` returns `202 Accepted` and a submission ID. Subscribe to the matching Socket.IO submission room or poll `GET /submissions/:id` for the completed verdict.
 
-### Using the Theme Toggle
-- Click the **moon/sun icon** in the top-right navbar to toggle between light and dark modes
-- The theme preference is automatically saved and persists across browser sessions
-- The theme applies to:
-  - Background colors (`bg-white` / `dark:bg-zinc-950`)
-  - Text colors (`text-zinc-900` / `dark:text-zinc-100`)
-  - Borders (`border-zinc-200` / `dark:border-zinc-800`)
-  - All UI components with `dark:` prefix
+## Socket.IO events
 
-### Implementation Details
-- **tailwind.config.ts**: Added explicit `darkMode: 'class'` configuration
-- **ThemeProvider**: Set with `storageKey="codingcon-theme"` and `enableTransitionOnChange={true}`
-- **ThemeScript** (`src/components/ThemeScript.tsx`): Early-running script to prevent FOUC
-- All components use Tailwind's `dark:` variant for dark mode styling
+Clients can subscribe to these channels:
 
-### Testing the Theme
-1. Open http://localhost:3000 in your browser
-2. Click the moon/sun icon in the navbar
-3. Verify the UI transitions smoothly between light and dark modes
-4. Refresh the page - your theme choice should persist
-5. Open DevTools → Application → Local Storage → check `codingcon-theme` value
+- `subscribe:submission` for progress and completion of an owned submission
+- `subscribe:leaderboard` for contest leaderboard updates
+- `subscribe:contest` for contest announcements
 
-### Troubleshooting
-- **Theme not persisting**: Check browser's localStorage is enabled
-- **FOUC (flash of wrong theme)**: Ensure `ThemeScript` is included in the `<head>`
-- **Styles not updating**: Clear browser cache and restart the dev server
+The server emits `submission:progress`, `submission:done`, `leaderboard:update`, and `announcement` events.
 
+## Testing and maintenance
+
+Run backend verification from `backend/`:
+
+```bash
+npm test
+npm run build
+```
+
+The GitHub Actions maintenance workflow runs on pushes to `main`, pull requests, manual dispatch, and every Monday. It installs locked dependencies, runs the backend test suite and TypeScript build, and fails on production dependency vulnerabilities rated high or critical.
+
+## Operational notes
+
+- The database bootstrap creates demonstration data only when the user collection is empty. Replace or remove demonstration accounts before any non-local deployment.
+- The in-memory MongoDB and RabbitMQ fallbacks are intended for development only; production should use the configured persistent services.
+- The custom-execution endpoint is rate-limited and limits source input to 64 KB. Submission and authentication routes also have in-process rate limits. Use a shared rate-limit store when horizontally scaling the API.
+- Keep Docker images patched and regularly review the scheduled dependency-audit results.
+
+## License
+
+This repository is distributed under the MIT License.
