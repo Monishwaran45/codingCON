@@ -56,10 +56,8 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/codingcon
       - REDIS_URL=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - JWT_SECRET=codingcon_production_hardened_jwt_secret_key_987654321
-      - CORS_ORIGIN=http://localhost:3000
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a high-entropy value}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -81,7 +79,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017/codingcon
       - REDIS_URL=redis://redis:6379/0
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-      - JWT_SECRET=codingcon_production_hardened_jwt_secret_key_987654321
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a high-entropy value}
     depends_on:
       mongodb:
         condition: service_healthy

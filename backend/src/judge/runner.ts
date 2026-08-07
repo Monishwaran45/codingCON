@@ -149,17 +149,21 @@ async function runInDocker(
   writeSourceFile(srcFile, code);
   fs.writeFileSync(path.join(dir, 'stdin.txt'), Buffer.from(stdin ?? '', 'utf8'));
 
-  // Build the in-container command pipeline
+  // Source and stdin are supplied read-only. Compilation happens in a separate
+  // tmpfs work directory, so compiled languages remain supported with a fully
+  // read-only container root filesystem.
+  const workSrc = `/work/${srcName}`;
   const compileStep = cfg.buildCmd
-    ? `${cfg.buildCmd(`/code/${srcName}`, '/code/solution').join(' ')} && `
+    ? `${cfg.buildCmd(workSrc, '/work/solution').join(' ')} && `
     : '';
-  const runStep = cfg.runCmd(`/code/${srcName}`, '/code/solution').join(' ');
-  const shellCmd = `${compileStep}${runStep} < /code/stdin.txt`;
+  const runStep = cfg.runCmd(workSrc, '/work/solution').join(' ');
+  const shellCmd = `cp /input/${srcName} ${workSrc} && ${compileStep}${runStep} < /input/stdin.txt`;
 
   // Production Container Hardening Flags
   const args = [
     'run', '--rm',
     '--network', 'none',                                    // Complete network isolation
+    '--read-only',                                           // No writable container overlay
     '--memory', `${MEMORY_MB}m`,                           // RAM limit
     '--memory-swap', `${MEMORY_MB}m`,                      // Disable swap expansion
     '--cpus', '0.5',                                       // 0.5 CPU core max limit
@@ -168,8 +172,10 @@ async function runInDocker(
     '--ulimit', 'nofile=64',
     '--security-opt', 'no-new-privileges:true',            // Block privilege escalation
     '--cap-drop', 'ALL',                                   // Drop all Linux root capabilities
-    '--tmpfs', '/tmp:rw,exec,size=64m',                    // Isolated in-memory temp dir
-    '-v', `${dir}:/code:ro`,                               // Source files mounted READ-ONLY
+    '--tmpfs', '/tmp:rw,exec,size=64m,mode=1777',          // Isolated in-memory temp dir
+    '--tmpfs', '/work:rw,exec,size=128m,mode=1777',        // Writable compiler/runtime work area
+    '--user', '65534:65534',                                // Unprivileged user inside the sandbox
+    '-v', `${dir}:/input:ro`,                              // Source files mounted READ-ONLY
     cfg.image,
     'sh', '-c', shellCmd,
   ];

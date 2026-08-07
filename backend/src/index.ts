@@ -8,7 +8,6 @@ import helmet from 'helmet';
 import { connectDB } from './db/database';
 import { initSocket } from './socket/gateway';
 import { connectRabbitMQ } from './queue/rabbitmq';
-import { verifyDockerEngine } from './judge/runner';
 import { createRateLimiter, auditLogger } from './middleware/security';
 
 import authRouter        from './routes/auth';
@@ -126,16 +125,16 @@ const server = http.createServer(app);
 initSocket(server);
 console.log('✓ Socket.IO gateway ready');
 
-// Startup sequence: Verify Docker Engine -> Connect Mongo -> Connect RabbitMQ -> Start Listener
-verifyDockerEngine()
-  .then(() => connectDB())
+// The API is deliberately kept separate from the Docker socket. The judge
+// worker verifies Docker before it begins consuming untrusted-code jobs.
+connectDB()
   .then(() => connectRabbitMQ())
   .then(() => {
     server.listen(PORT, () => {
       console.log(`\n🚀 CodingCON Hardened Backend running on http://localhost:${PORT}`);
       console.log(`   REST  → http://localhost:${PORT}/api`);
       console.log(`   WS    → ws://localhost:${PORT}`);
-      console.log(`   Judge → Hardened Docker Sandbox (Mandatory)\n`);
+      console.log(`   Judge → Dedicated hardened worker\n`);
     });
 
     // Start consuming socket events to forward to connected clients

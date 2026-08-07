@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { connectDB } from './db/database';
 import { consumeJudgeJobs } from './queue/rabbitmq';
-import { runCode } from './judge/runner';
+import { runCode, verifyDockerEngine } from './judge/runner';
 import { normaliseOutput } from './judge/normalise';
 import { v4 as uuid } from 'uuid';
 import { Submission, ISubmissionResult } from './db/models/Submission';
@@ -166,6 +166,7 @@ async function runJudge(job: JudgeJob): Promise<void> {
 }
 
 async function startWorker() {
+  await verifyDockerEngine();
   await connectDB();
   console.log('✓ Worker connected to MongoDB');
   
