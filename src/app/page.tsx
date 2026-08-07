@@ -29,6 +29,19 @@ export default function StudentDashboardPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Refresh user stats whenever the page gains focus (tab switch / navigate back)
+  // so Max Score and Solved count are always current after returning from a solve.
+  useEffect(() => {
+    const handleFocus = () => {
+      if (!isAuthenticated) return;
+      import('@/store/useAuthStore').then(({ useAuthStore }) => {
+        useAuthStore.getState().refreshUser();
+      });
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isAuthenticated]);
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!isAuthenticated) {
@@ -37,6 +50,10 @@ export default function StudentDashboardPage() {
       }
       setIsLoading(true);
       try {
+        // Refresh user stats (totalPoints, solvedCount) from server on every page load
+        const { useAuthStore } = await import('@/store/useAuthStore');
+        await useAuthStore.getState().refreshUser();
+
         const activeContest = await api.getActiveContest().catch(() => null);
         if (activeContest) setContest(activeContest);
         const userSubmissions = await api.getSubmissions();
@@ -151,7 +168,7 @@ export default function StudentDashboardPage() {
           </h1>
           <div className="flex items-center gap-4 mt-3 text-xs">
             <span className="px-2.5 py-1 rounded bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400">
-              Rating: <strong className="font-mono text-zinc-900 dark:text-zinc-100">{user.rating || 1500}</strong>
+              Max Score: <strong className="font-mono text-zinc-900 dark:text-zinc-100">{user.totalPoints || 0}</strong>
             </span>
             <span className="px-2.5 py-1 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400 font-semibold">
               Solved: {user.solvedCount || 0}

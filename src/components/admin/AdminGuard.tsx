@@ -20,7 +20,11 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     );
   }
 
-  const hasAccess = isAuthenticated && user && (user.permissions?.includes('manage_problems') || user.permissions?.includes('manage_users'));
+  const hasAccess = isAuthenticated && user && (
+    user.permissions?.includes('manage_problems') ||
+    user.permissions?.includes('manage_contests') ||
+    user.permissions?.includes('all')
+  );
 
   if (!hasAccess) {
     return (

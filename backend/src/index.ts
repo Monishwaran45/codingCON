@@ -45,6 +45,30 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', database: 'mongodb', ts: new Date().toISOString() });
 });
 
+// API index — lists available endpoints
+app.get('/api', (_req, res) => {
+  res.json({
+    name: 'CodingCON API',
+    status: 'running',
+    endpoints: [
+      'POST /api/auth/login',
+      'POST /api/auth/register',
+      'GET  /api/auth/me',
+      'GET  /api/problems',
+      'GET  /api/problems/:id',
+      'GET  /api/contest',
+      'GET  /api/contest/active',
+      'GET  /api/contest/:id',
+      'GET  /api/leaderboard/:contestId',
+      'GET  /api/submissions',
+      'POST /api/submissions',
+      'POST /api/run',
+      'GET  /api/profile',
+      'GET  /api/health',
+    ],
+  });
+});
+
 // Root welcome handler
 app.get('/', (_req, res) => {
   res.json({

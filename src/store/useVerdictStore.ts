@@ -5,6 +5,8 @@ import { API_BASE_URL } from '@/lib/constants';
 interface VerdictState {
   isStreaming: boolean;
   submissionId: string | null;
+  /** The problemId belonging to the in-flight / most-recent submission */
+  currentProblemId: string | null;
   verdict: Verdict | null;
   passedTestCases: number;
   totalTestCases: number;
@@ -20,7 +22,7 @@ interface VerdictState {
     contestId?: string,
   ) => Promise<void>;
   updateVerdictFromSocket: (
-    data: Partial<VerdictState> & { testCaseResult?: TestCaseResult },
+    data: Partial<VerdictState> & { testCaseResult?: TestCaseResult; isStreaming?: boolean },
   ) => void;
   resetVerdict: () => void;
 }
@@ -28,6 +30,7 @@ interface VerdictState {
 export const useVerdictStore = create<VerdictState>((set, get) => ({
   isStreaming: false,
   submissionId: null,
+  currentProblemId: null,
   verdict: null,
   passedTestCases: 0,
   totalTestCases: 0,
@@ -40,6 +43,7 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     set({
       isStreaming: false,
       submissionId: null,
+      currentProblemId: null,
       verdict: null,
       passedTestCases: 0,
       totalTestCases: 0,
@@ -59,7 +63,8 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     if (get().isStreaming) return;
 
     get().resetVerdict();
-    set({ isStreaming: true, verdict: 'running' });
+    // Store the problemId so updateVerdictFromSocket can reference it
+    set({ isStreaming: true, verdict: 'running', currentProblemId: problemId });
 
     const { useContestStore } = await import('@/store/useContestStore');
     const effectiveContestId = contestId || useContestStore.getState().contest?.id;
@@ -73,11 +78,7 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      set({
-        isStreaming: false,
-        verdict: 'RE',
-        failedTestCase: null,
-      });
+      set({ isStreaming: false, verdict: 'RE', failedTestCase: null });
       console.error('[Judge] Submission failed:', (body as { error?: string }).error);
       return;
     }
@@ -94,5 +95,26 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
         : state.testCaseResults;
       return { ...state, ...data, testCaseResults: updatedResults };
     });
+
+    // When the final verdict is AC (isStreaming=false means it's the done event),
+    // immediately mark the problem as solved in the contest store so the problem
+    // list row flips to the green "Solved" badge without any page reload.
+    // Also refresh the auth user so Max Score + Solved count update live.
+    if (data.verdict === 'AC' && data.isStreaming === false) {
+      const problemId = get().currentProblemId;
+
+      if (problemId) {
+        import('@/store/useContestStore').then(({ useContestStore }) => {
+          const { contest, markProblemSolved } = useContestStore.getState();
+          if (contest) markProblemSolved(problemId);
+        });
+      }
+
+      // Re-fetch /auth/me so totalPoints and solvedCount reflect the new solve.
+      // Small delay ensures the worker's DB write has committed before we read.
+      import('@/store/useAuthStore').then(({ useAuthStore }) => {
+        setTimeout(() => useAuthStore.getState().refreshUser(), 800);
+      });
+    }
   },
 }));

@@ -11,6 +11,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-fetch /auth/me and update the cached user (totalPoints, solvedCount, etc.) */
+  refreshUser: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -54,6 +56,15 @@ export const useAuthStore = create<AuthState>()(
           // ignore network errors on logout
         }
         set({ user: null, isAuthenticated: false, error: null });
+      },
+
+      refreshUser: async () => {
+        try {
+          const userData = await api.getMe();
+          set({ user: userData });
+        } catch {
+          // silently ignore — stale data is better than crashing
+        }
       },
     }),
     {

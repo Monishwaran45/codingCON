@@ -9,11 +9,15 @@ interface ContestState {
   userDeltaScore: number;
   isLeaderboardFrozen: boolean;
   announcements: { id: string; timestamp: string; message: string }[];
+  /** Set of problemIds the current user has solved (AC) in this contest */
+  solvedProblemIds: Set<string>;
   updateTimer: () => void;
   filterLeaderboard: (query: string) => LeaderboardEntry[];
   setContest: (contest: Contest) => void;
   setLeaderboard: (leaderboard: LeaderboardEntry[]) => void;
   setUserRankDetails: (rank: number, delta: number) => void;
+  markProblemSolved: (problemId: string) => void;
+  setSolvedProblemIds: (ids: string[]) => void;
 }
 
 export const useContestStore = create<ContestState>((set, get) => ({
@@ -24,6 +28,7 @@ export const useContestStore = create<ContestState>((set, get) => ({
   userDeltaScore: 0,
   isLeaderboardFrozen: false,
   announcements: [],
+  solvedProblemIds: new Set<string>(),
   updateTimer: () => {
     set((state) => ({
       timeRemainingSeconds: Math.max(0, state.timeRemainingSeconds - 1),
@@ -50,5 +55,13 @@ export const useContestStore = create<ContestState>((set, get) => ({
   },
   setUserRankDetails: (rank: number, delta: number) => {
     set({ userRank: rank, userDeltaScore: delta });
+  },
+  markProblemSolved: (problemId: string) => {
+    set((state) => ({
+      solvedProblemIds: new Set([...state.solvedProblemIds, problemId]),
+    }));
+  },
+  setSolvedProblemIds: (ids: string[]) => {
+    set({ solvedProblemIds: new Set(ids) });
   },
 }));

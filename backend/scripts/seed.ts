@@ -102,16 +102,20 @@ async function seed() {
   console.log('\n── Seeding roles …');
   await Role.deleteMany({});
   await Role.create({ name: 'student', permissions: ['solve_problems'] });
-  await Role.create({ name: 'faculty', permissions: ['create_problem', 'view_reports'] });
-  await Role.create({ name: 'admin', permissions: ['all'] });
-  await Role.create({ name: 'problem_setter', permissions: ['create_problem'] });
+  await Role.create({
+    name: 'problem_setter',
+    permissions: ['manage_problems', 'create_problem'],
+  });
+  await Role.create({
+    name: 'admin',
+    permissions: ['manage_problems', 'manage_contests', 'manage_users', 'all'],
+  });
 
   // ── Users ─────────────────────────────────────────────────────────────────────
   console.log('\n── Seeding users …');
   const adminId   = await insertUser('admin@cit.edu',    'Admin',       'admin123',   'admin',          0);
-  const _faculty  = await insertUser('faculty@cit.edu',  'Faculty',     'faculty123', 'problem_setter', 0);
   const _student  = await insertUser('student@cit.edu',  'TestStudent', 'student123', 'student',       1500);
-  void _faculty; void _student;
+  void _student;
 
   // ── Problems ──────────────────────────────────────────────────────────────────
   console.log('\n── Seeding problems …');
@@ -275,7 +279,6 @@ async function seed() {
   console.log('\n✅  Seed complete.\n');
   console.log('  Default accounts:');
   console.log('    admin@cit.edu     / admin123');
-  console.log('    faculty@cit.edu   / faculty123');
   console.log('    student@cit.edu   / student123\n');
 
   process.exit(0);
