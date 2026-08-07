@@ -264,3 +264,45 @@ codingCON/
 ## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+
+---
+
+## 🎨 Dark/Light Mode Theme System (v2.1)
+
+### Overview
+CodingCON features a fully functional dark/light mode theme toggle integrated with Tailwind CSS and `next-themes`.
+
+### How It Works
+1. **Theme Provider**: `next-themes` package manages theme state using the `class` strategy
+2. **Persistence**: Theme preference is stored in browser's `localStorage` under key `codingcon-theme`
+3. **Early Script**: `ThemeScript` component injects a script that runs before page render to prevent flash of unstyled content (FOUC)
+4. **Configuration**: Tailwind dark mode uses the `class` selector (adds `dark` class to `<html>`)
+
+### Using the Theme Toggle
+- Click the **moon/sun icon** in the top-right navbar to toggle between light and dark modes
+- The theme preference is automatically saved and persists across browser sessions
+- The theme applies to:
+  - Background colors (`bg-white` / `dark:bg-zinc-950`)
+  - Text colors (`text-zinc-900` / `dark:text-zinc-100`)
+  - Borders (`border-zinc-200` / `dark:border-zinc-800`)
+  - All UI components with `dark:` prefix
+
+### Implementation Details
+- **tailwind.config.ts**: Added explicit `darkMode: 'class'` configuration
+- **ThemeProvider**: Set with `storageKey="codingcon-theme"` and `enableTransitionOnChange={true}`
+- **ThemeScript** (`src/components/ThemeScript.tsx`): Early-running script to prevent FOUC
+- All components use Tailwind's `dark:` variant for dark mode styling
+
+### Testing the Theme
+1. Open http://localhost:3000 in your browser
+2. Click the moon/sun icon in the navbar
+3. Verify the UI transitions smoothly between light and dark modes
+4. Refresh the page - your theme choice should persist
+5. Open DevTools → Application → Local Storage → check `codingcon-theme` value
+
+### Troubleshooting
+- **Theme not persisting**: Check browser's localStorage is enabled
+- **FOUC (flash of wrong theme)**: Ensure `ThemeScript` is included in the `<head>`
+- **Styles not updating**: Clear browser cache and restart the dev server
+
