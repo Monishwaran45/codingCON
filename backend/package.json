@@ -9,7 +9,25 @@
     "start": "node dist/src/index.js",
     "worker": "ts-node src/worker.ts",
     "seed": "ts-node scripts/seed.ts",
-    "db:reset": "ts-node scripts/reset.ts"
+    "db:reset": "ts-node scripts/reset.ts",
+    "test": "jest --runInBand --forceExit",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "rootDir": ".",
+    "testMatch": ["**/__tests__/**/*.test.ts"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": ["ts-jest", {
+        "tsconfig": "<rootDir>/__tests__/tsconfig.json"
+      }]
+    },
+    "testTimeout": 30000,
+    "setupFiles": ["<rootDir>/__tests__/setup.ts"]
   },
   "dependencies": {
     "amqplib": "^2.0.1",
@@ -30,9 +48,12 @@
     "@types/cookie-parser": "^1.4.7",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^22.0.0",
     "@types/uuid": "^10.0.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.5"

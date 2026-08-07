@@ -7,6 +7,18 @@ Handles authentication, problem management, contest management, code execution (
 
 ## Test Results
 
+All 102 unit tests pass (judge/compiler pipeline). Run with:
+
+```bash
+npm test              # run full suite
+npm test -- --watch  # watch mode
+```
+
+**Test coverage:**
+- `runner.test.ts` (29 tests): Python, JavaScript, C++, Java execution, compile errors, timeouts, cleanup
+- `worker-normalise.test.ts` (47 tests): output normalisation, verdict decision logic, judge loop simulation
+- `submissions-normalise.test.ts` (26 tests): submissions normalise contract, divergence documentation
+
 All 87 integration tests pass. Run them yourself with:
 
 ```bash
@@ -273,6 +285,19 @@ Real-time progress arrives via Socket.IO. Poll `GET /submissions/:id` for final 
 | JavaScript | `node` | `process.stdin` events |
 | C++ | `g++` (MinGW on Windows) | `cin` |
 | Java | `javac` + `java` | `Scanner` / `BufferedReader` |
+
+### Recent Fixes (v2.1)
+
+All four compilers now work reliably on Windows and Linux:
+
+- **Python**: Fixed stdin pipe hang on Windows Node v24+ by using `fs.createReadStream` instead of direct `child.stdin.write()`
+- **JavaScript**: Fixed infinite block when spawning node-from-node by redirecting stdin via file stream
+- **C++**: Fixed compile command being called twice, generating inconsistent output paths. Now builds args once.
+- **Java**: Fixed UTF-8 BOM being written to source files, breaking `javac` with "illegal character: '\ufeff'". Files now use `Buffer.from(content, 'utf8')`.
+
+**New `/api/run` endpoint:** Custom Input panel now actually runs code in real-time instead of returning a mock. Returns `{ stdout, stderr, executionTimeMs, exitCode, timedOut }`.
+
+**Unified normalise():** Output comparison logic consolidated into `src/judge/normalise.ts` — worker and submissions routes now use the same function for consistent verdicts.
 
 ### Native mode (default — `JUDGE_USE_DOCKER=false`)
 

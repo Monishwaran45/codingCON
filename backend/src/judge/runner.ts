@@ -26,22 +26,41 @@ export interface RunResult {
   timedOut:        boolean;
 }
 
-const TIMEOUT_MS  = Number(process.env.JUDGE_TIMEOUT_MS  ?? 10000);
-const MEMORY_MB   = Number(process.env.JUDGE_MEMORY_MB   ?? 256);
-const USE_DOCKER  = process.env.JUDGE_USE_DOCKER === 'true';
+// Read env vars as functions so tests can override process.env at runtime
+const getTimeoutMs  = () => Number(process.env.JUDGE_TIMEOUT_MS  ?? 10000);
+const getMemoryMb   = () => Number(process.env.JUDGE_MEMORY_MB   ?? 256);
+const getUseDocker  = () => process.env.JUDGE_USE_DOCKER === 'true';
 
 // On Windows, native process spawn adds ~400-700ms overhead per invocation.
-// In Docker mode this overhead doesn't apply (container is pre-warmed).
-// We subtract this from the measured time before comparing to the problem limit.
-const SPAWN_OVERHEAD_MS = (process.platform === 'win32' && !USE_DOCKER) ? 600 : 0;
+const SPAWN_OVERHEAD_MS = process.platform === 'win32' ? 600 : 0;
+
+// Max stdout/stderr to buffer — prevents OOM from infinite-printing programs
+const MAX_OUTPUT_BYTES = 1 * 1024 * 1024; // 1 MB
 
 const PYTHON_BIN = process.platform === 'win32' ? 'python' : 'python3';
+const IS_WIN     = process.platform === 'win32';
+
+/**
+ * Write source file without BOM.
+ * Node's 'utf8' encoding on Windows can emit a UTF-8 BOM through certain
+ * PowerShell / inherited stdio paths. We use Buffer directly to guarantee
+ * no BOM, which is critical for javac.
+ */
+function writeSourceFile(filePath: string, content: string): void {
+  fs.writeFileSync(filePath, Buffer.from(content, 'utf8'));
+}
 
 function getJavaClassName(code: string): string {
-  const publicMatch = code.match(/public\s+class\s+([A-Za-z0-9_]+)/);
-  if (publicMatch && publicMatch[1]) return publicMatch[1];
-  const classMatch = code.match(/class\s+([A-Za-z0-9_]+)/);
-  if (classMatch && classMatch[1]) return classMatch[1];
+  // Strip line and block comments before searching so a class name that
+  // only appears in a comment is never selected.
+  const stripped = code
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  const publicMatch = stripped.match(/public\s+class\s+([A-Za-z0-9_]+)/);
+  if (publicMatch?.[1]) return publicMatch[1];
+  const classMatch = stripped.match(/\bclass\s+([A-Za-z0-9_]+)/);
+  if (classMatch?.[1]) return classMatch[1];
   return 'Solution';
 }
 
@@ -54,7 +73,7 @@ const LANG_CONFIG: Record<string, {
   python: {
     ext:    'py',
     image:  'python:3.11-alpine',
-    runCmd: (src) => [PYTHON_BIN, src],
+    runCmd: (src) => [PYTHON_BIN, '-u', src],   // -u = unbuffered stdout
   },
   javascript: {
     ext:    'js',
@@ -62,15 +81,17 @@ const LANG_CONFIG: Record<string, {
     runCmd: (src) => ['node', src],
   },
   cpp: {
-    ext:    'cpp',
-    image:  'gcc:13',
+    ext:      'cpp',
+    image:    'gcc:13',
     buildCmd: (src, out) => ['g++', '-O2', '-std=c++17', '-o', out, src],
     runCmd:   (_src, out) => [out],
   },
   java: {
-    ext:    'java',
-    image:  'eclipse-temurin:21-jdk-alpine',
-    buildCmd: (src) => ['javac', src],
+    ext:      'java',
+    image:    'eclipse-temurin:21-jdk-alpine',
+    // -encoding UTF-8 prevents javac from using the system default (e.g. GBK
+    // on Chinese Windows), which would corrupt any non-ASCII string literals.
+    buildCmd: (src) => ['javac', '-encoding', 'UTF-8', src],
     runCmd:   (src) => ['java', '-cp', path.dirname(src), path.basename(src, '.java')],
   },
 };
@@ -84,7 +105,7 @@ export async function runCode(
   const cfg = LANG_CONFIG[language];
   if (!cfg) throw new Error(`Unsupported language: ${language}`);
 
-  if (USE_DOCKER) return runInDocker(language, code, stdin, cfg);
+  if (getUseDocker()) return runInDocker(language, code, stdin, cfg);
   return runNative(language, code, stdin, cfg);
 }
 
@@ -95,75 +116,79 @@ async function runNative(
   stdin: string,
   cfg: typeof LANG_CONFIG[string],
 ): Promise<RunResult> {
-  const dir     = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+  const TIMEOUT_MS = getTimeoutMs();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+
   const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
-  const srcFile = path.join(dir, language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`);
-  const binName = process.platform === 'win32' ? 'solution.exe' : 'solution';
-  const binFile = path.join(dir, binName);
+  const srcFile = path.join(
+    dir,
+    language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`,
+  );
+  // On Windows, compiled C++ binary needs .exe extension to be executable
+  const binFile = path.join(dir, IS_WIN ? 'solution.exe' : 'solution');
 
-  fs.writeFileSync(srcFile, code, 'utf8');
+  writeSourceFile(srcFile, code);
 
-  // Compile if needed
+  // ── Compile step ──────────────────────────────────────────────────────────
   if (cfg.buildCmd) {
+    // Build the args array ONCE so srcFile/binFile are consistent
+    const compileArgs = cfg.buildCmd(srcFile, binFile);
+    const [compileCmd, ...compileCmdArgs] = compileArgs;
+
     try {
-      await execFileAsync(cfg.buildCmd(srcFile, binFile)[0], cfg.buildCmd(srcFile, binFile).slice(1), {
+      await execFileAsync(compileCmd, compileCmdArgs, {
         timeout: TIMEOUT_MS,
         cwd: dir,
       });
     } catch (err: unknown) {
       cleanup(dir);
-      const e = err as { stderr?: string; message?: string };
+      const e = err as { stderr?: string; stdout?: string; message?: string };
       return {
-        stdout: '',
-        stderr: e.stderr || e.message || 'Compilation error: compiler not found or build failed.',
+        stdout:          '',
+        stderr:          (e.stderr || e.stdout || e.message || 'Compilation failed').trim(),
         executionTimeMs: 0,
-        netTimeMs: 0,
-        memoryKb: 0,
-        exitCode: 1,
-        timedOut: false,
+        netTimeMs:       0,
+        memoryKb:        0,
+        exitCode:        1,
+        timedOut:        false,
       };
     }
   }
+
+  // ── Run step ──────────────────────────────────────────────────────────────
+  // Write stdin to a temp file so we can pipe it via fs.createReadStream.
+  // This avoids the Windows issue where spawning node-from-node causes the
+  // child to inherit the parent's console stdin handle and block forever.
+  const stdinFile = path.join(dir, 'stdin.txt');
+  fs.writeFileSync(stdinFile, Buffer.from(stdin ?? '', 'utf8'));
 
   const runArgs = cfg.runCmd(srcFile, binFile);
   const start   = Date.now();
 
   return new Promise((resolve) => {
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
+    let stdout      = '';
+    let stderr      = '';
+    let timedOut    = false;
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let settled     = false;
 
     const child = spawn(runArgs[0], runArgs.slice(1), {
       cwd: dir,
-      env: { ...process.env, PATH: process.env.PATH },
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
+      // Use 'pipe' for all — we feed stdin from the file via a read stream
+      // instead of child.stdin.write so the child always gets a clean EOF.
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill('SIGKILL');
+      try { child.kill('SIGKILL'); } catch { /* already exited */ }
     }, TIMEOUT_MS);
 
-    child.on('error', (err: Error) => {
-      clearTimeout(timer);
-      cleanup(dir);
-      resolve({
-        stdout: '',
-        stderr: `Execution error (${runArgs[0]}): ${err.message}`,
-        executionTimeMs: 0,
-        netTimeMs: 0,
-        memoryKb: 0,
-        exitCode: 1,
-        timedOut: false,
-      });
-    });
-
-    child.stdin.write(stdin ?? '');
-    child.stdin.end();
-
-    child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
-    child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
-
-    child.on('close', (code) => {
+    const finish = (exitCode: number) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       cleanup(dir);
       const wall = Date.now() - start;
@@ -173,9 +198,49 @@ async function runNative(
         executionTimeMs: wall,
         netTimeMs:       Math.max(0, wall - SPAWN_OVERHEAD_MS),
         memoryKb:        0,
-        exitCode:        code ?? 1,
+        exitCode,
         timedOut,
       });
+    };
+
+    child.on('error', (err: Error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup(dir);
+      resolve({
+        stdout:          '',
+        stderr:          `Execution error: ${err.message}`,
+        executionTimeMs: 0,
+        netTimeMs:       0,
+        memoryKb:        0,
+        exitCode:        1,
+        timedOut:        false,
+      });
+    });
+
+    // Pipe the stdin file into the child's stdin, then close it.
+    // Using a ReadStream guarantees EOF is sent when the file ends,
+    // even when the parent process itself has an open stdin pipe
+    // (which would otherwise block the child on Windows Node v22+).
+    const stdinStream = fs.createReadStream(stdinFile);
+    stdinStream.pipe(child.stdin);
+    stdinStream.on('error', () => {
+      try { child.stdin.end(); } catch { /* ignore */ }
+    });
+
+    child.stdout.on('data', (d: Buffer) => {
+      stdoutBytes += d.length;
+      if (stdoutBytes <= MAX_OUTPUT_BYTES) stdout += d.toString('utf8');
+    });
+
+    child.stderr.on('data', (d: Buffer) => {
+      stderrBytes += d.length;
+      if (stderrBytes <= MAX_OUTPUT_BYTES) stderr += d.toString('utf8');
+    });
+
+    child.on('close', (code) => {
+      finish(code ?? 1);
     });
   });
 }
@@ -187,12 +252,16 @@ async function runInDocker(
   stdin: string,
   cfg: typeof LANG_CONFIG[string],
 ): Promise<RunResult> {
+  const TIMEOUT_MS = getTimeoutMs();
+  const MEMORY_MB  = getMemoryMb();
+
   const dir     = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
   const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
   const srcName = language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`;
   const srcFile = path.join(dir, srcName);
-  fs.writeFileSync(srcFile, code, 'utf8');
-  fs.writeFileSync(path.join(dir, 'stdin.txt'), stdin ?? '', 'utf8');
+
+  writeSourceFile(srcFile, code);
+  fs.writeFileSync(path.join(dir, 'stdin.txt'), Buffer.from(stdin ?? '', 'utf8'));
 
   // Build the docker run command
   const compileStep = cfg.buildCmd
@@ -215,21 +284,21 @@ async function runInDocker(
   ];
 
   const start = Date.now();
-  const DOCKER_OVERHEAD = 2200; // Approximate Docker container startup overhead in ms
+  const DOCKER_OVERHEAD = 2200;
 
   try {
     const { stdout, stderr } = await execFileAsync('docker', args, {
       timeout: TIMEOUT_MS + 3000,
-      maxBuffer: 10 * 1024 * 1024,
+      maxBuffer: MAX_OUTPUT_BYTES,
     });
     cleanup(dir);
     const wall = Date.now() - start;
-    const adjustedTime = Math.max(0, wall - DOCKER_OVERHEAD);
+    const net  = Math.max(0, wall - DOCKER_OVERHEAD);
     return {
       stdout:          stdout.trimEnd(),
       stderr:          stderr.trimEnd(),
-      executionTimeMs: adjustedTime,
-      netTimeMs:       adjustedTime,
+      executionTimeMs: net,
+      netTimeMs:       net,
       memoryKb:        0,
       exitCode:        0,
       timedOut:        false,
@@ -238,12 +307,12 @@ async function runInDocker(
     cleanup(dir);
     const e = err as { killed?: boolean; stderr?: string; stdout?: string; code?: number };
     const wall = Date.now() - start;
-    const adjustedTime = Math.max(0, wall - DOCKER_OVERHEAD);
+    const net  = Math.max(0, wall - DOCKER_OVERHEAD);
     return {
-      stdout:          e.stdout?.trimEnd() ?? '',
-      stderr:          e.stderr?.trimEnd() ?? '',
-      executionTimeMs: adjustedTime,
-      netTimeMs:       adjustedTime,
+      stdout:          (e.stdout ?? '').trimEnd(),
+      stderr:          (e.stderr ?? '').trimEnd(),
+      executionTimeMs: net,
+      netTimeMs:       net,
       memoryKb:        0,
       exitCode:        e.code ?? 1,
       timedOut:        e.killed ?? false,
@@ -252,5 +321,9 @@ async function runInDocker(
 }
 
 function cleanup(dir: string) {
-  try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(`[judge] Failed to clean up ${dir}:`, (err as Error).message);
+  }
 }

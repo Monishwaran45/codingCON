@@ -65,14 +65,18 @@ def solve():
 if __name__ == '__main__':
     solve()
 `,
-  javascript: `const fs = require('fs');
+  javascript: `process.stdin.resume();
+process.stdin.setEncoding('utf-8');
+let _input = '';
+process.stdin.on('data', d => _input += d);
+process.stdin.on('end', () => {
+    const lines = _input.trim().split('\\n');
+    main(lines);
+});
 
-function main() {
-    const input = fs.readFileSync('/dev/stdin', 'utf-8').trim().split(/\\s+/);
-    if (!input || input[0] === '') return;
+function main(lines) {
+    // your solution here
 }
-
-main();
 `,
   java: `import java.util.*;
 

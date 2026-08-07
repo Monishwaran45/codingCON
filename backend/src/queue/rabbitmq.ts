@@ -11,9 +11,9 @@ let channel: any = null;
 const fallbackEmitter = new EventEmitter();
 let isFallback = false;
 
-export async function connectRabbitMQ(retries = 10): Promise<void> {
+export async function connectRabbitMQ(retries = 3): Promise<void> {
   if (channel || isFallback) return;
-  
+
   while (retries > 0) {
     try {
       connection = await amqp.connect(RABBITMQ_URL);
@@ -27,23 +27,21 @@ export async function connectRabbitMQ(retries = 10): Promise<void> {
       console.log('✓ RabbitMQ connected to judge_queue and socket_events_queue');
       return;
     } catch (error: any) {
-      console.error(`⚠️ Could not connect to RabbitMQ (retries left: ${retries - 1}):`, error.message || error);
       retries--;
       if (retries === 0) {
-        console.log('Starting fallback In-Memory Queue...');
+        console.warn(`⚠️ RabbitMQ unavailable — starting fallback In-Memory Queue...`);
         console.log('✓ Connected to In-Memory Queue (EventEmitter)');
         isFallback = true;
-        
-        // If we fall back to in-memory in the API process, we need a worker to consume it
-        // We'll dynamically require the worker logic so it doesn't crash the API if not needed
+
+        // Start the judge worker in-process so it can consume from the fallback emitter
         try {
-          // Just require the worker to start consuming from the in-memory queue
           require('../worker');
         } catch (err) {
           console.error('Failed to start fallback worker:', err);
         }
       } else {
-        await new Promise(r => setTimeout(r, 3000));
+        console.warn(`⚠️ Could not connect to RabbitMQ (retries left: ${retries}):`, (error as Error).message ?? error);
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
   }

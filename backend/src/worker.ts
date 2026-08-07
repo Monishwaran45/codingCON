@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { connectDB } from './db/database';
 import { consumeJudgeJobs } from './queue/rabbitmq';
 import { runCode } from './judge/runner';
+import { normaliseOutput } from './judge/normalise';
 import { v4 as uuid } from 'uuid';
 import { Submission, ISubmissionResult } from './db/models/Submission';
 import { Problem, ITestCase } from './db/models/Problem';
@@ -15,16 +16,8 @@ interface JudgeJob {
   testCases: ITestCase[]; timeLimitMs: number; isSubmit: boolean;
 }
 
-function normalise(s: string | null | undefined): string {
-  if (!s) return '';
-  return s
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .split('\n')
-    .map((l) => l.trim())
-    .join('\n')
-    .trim();
-}
+// Use the canonical normaliser from the judge module
+const normalise = normaliseOutput;
 
 async function runJudge(job: JudgeJob): Promise<void> {
   const { publishSocketEvent } = await import('./queue/rabbitmq');

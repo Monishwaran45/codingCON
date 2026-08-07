@@ -41,7 +41,9 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     const userDoc = await User.findById(decoded.id).select('id email username role');
 
     if (!userDoc) {
-      res.status(401).json({ error: 'User not found' });
+      // User was deleted or DB was wiped — clear the stale cookie
+      res.clearCookie('token');
+      res.status(401).json({ error: 'Session expired, please log in again' });
       return;
     }
 
@@ -56,6 +58,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     };
     next();
   } catch {
+    res.clearCookie('token');
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }

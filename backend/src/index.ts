@@ -15,6 +15,7 @@ import leaderboardRouter from './routes/leaderboard';
 import submissionsRouter from './routes/submissions';
 import profileRouter     from './routes/profile';
 import rolesRouter       from './routes/roles';
+import runRouter         from './routes/run';
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.use('/api/submissions', submissionsRouter);
 app.use('/api/submission',  submissionsRouter);
 app.use('/api/profile',     profileRouter);
 app.use('/api/roles',       rolesRouter);
+app.use('/api/run',         runRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

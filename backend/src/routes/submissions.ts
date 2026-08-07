@@ -6,6 +6,7 @@ import { User } from '../db/models/User';
 import { Leaderboard, IProblemBreakdown } from '../db/models/Leaderboard';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { runCode } from '../judge/runner';
+import { normaliseOutput } from '../judge/normalise';
 import { recalculateLeaderboard } from './leaderboard';
 import { publishJudgeJob } from '../queue/rabbitmq';
 
@@ -141,8 +142,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 
 // ── Judge ─────────────────────────────────────────────────────────────────────
 // ── Helper ────────────────────────────────────────────────────────────────────
-function normalise(s: string): string {
-  return s.split('\n').map((l) => l.trimEnd()).join('\n').trim();
-}
+// Re-export the canonical normaliser for any route-specific logic if needed
+export { normaliseOutput as normalise } from '../judge/normalise';
 
 export default router;

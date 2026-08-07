@@ -108,8 +108,37 @@ export default function ProblemDetailPage() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleRunCustomInput = (input: string) => {
-    setCustomOutput(`Mock stdout output for input:\n${input || '(empty)'}\nExecution successful. (0ms)`);
+  const handleRunCustomInput = async (input: string) => {
+    if (!problem) return;
+    setCustomOutput(undefined);
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ problemId: problem._id, language, code, stdin: input }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCustomOutput(`Error: ${data.error ?? 'Failed to run code'}`);
+        return;
+      }
+      const out = data.stdout ?? '';
+      const err = data.stderr ?? '';
+      const ms  = data.executionTimeMs ?? 0;
+      if (err && !out) {
+        setCustomOutput(`Runtime Error:\n${err}`);
+      } else {
+        setCustomOutput(
+          (out || '(no output)') +
+          (err ? `\n\nstderr:\n${err}` : '') +
+          `\n\n── ${ms}ms`
+        );
+      }
+    } catch (e) {
+      setCustomOutput(`Network error: ${(e as Error).message}`);
+    }
   };
 
   if (isLoading) {

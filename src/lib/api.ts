@@ -18,7 +18,18 @@ async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+    const message = (body as { error?: string }).error ?? `HTTP ${res.status}`;
+    // If the server says token is bad, wipe the persisted auth state so the
+    // user is taken back to the login screen instead of seeing a blank dashboard.
+    if (res.status === 401) {
+      try {
+        const { useAuthStore } = await import('@/store/useAuthStore');
+        useAuthStore.getState().logout();
+      } catch {
+        // ignore if store isn't available (e.g. during SSR)
+      }
+    }
+    throw new Error(message);
   }
   return res.json() as Promise<T>;
 }
