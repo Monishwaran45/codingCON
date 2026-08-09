@@ -20,8 +20,11 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
 
   if (!mounted || isLoading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12">
-        <SkeletonLoader count={3} className="h-20 w-full mb-4 rounded-xl" />
+      <div className="flex items-center justify-center min-h-[50vh] font-inter">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+          <span className="text-xs text-zinc-400 font-medium">Checking access...</span>
+        </div>
       </div>
     );
   }

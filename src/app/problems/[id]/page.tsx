@@ -21,6 +21,17 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 export default function ProblemDetailPage() {
+  return (
+    <AuthGuard
+      fallbackTitle="Sign In to Access Problem Workspace"
+      fallbackMessage="Please sign in with your student or faculty account to open the interactive code editor, test your algorithms, and submit solutions."
+    >
+      <ProblemWorkspace />
+    </AuthGuard>
+  );
+}
+
+function ProblemWorkspace() {
   const params = useParams();
   const problemId = (params?.id as string) || '';
 
@@ -57,17 +68,22 @@ export default function ProblemDetailPage() {
         return;
       }
       setIsLoading(true);
-      const [data, activeContest] = await Promise.all([
-        api.getProblemById(problemId),
-        api.getActiveContest().catch(() => null),
-      ]);
-      setProblem(data);
-      if (activeContest) {
-        const { useContestStore } = await import('@/store/useContestStore');
-        useContestStore.getState().setContest(activeContest);
+      try {
+        const [data, activeContest] = await Promise.all([
+          api.getProblemById(problemId),
+          api.getActiveContest().catch(() => null),
+        ]);
+        setProblem(data);
+        if (activeContest) {
+          const { useContestStore } = await import('@/store/useContestStore');
+          useContestStore.getState().setContest(activeContest);
+        }
+      } catch (err) {
+        console.error('Failed to load problem:', err);
+      } finally {
+        setIsLoading(false);
+        resetVerdict();
       }
-      setIsLoading(false);
-      resetVerdict();
     }
     loadProblem();
   }, [problemId, resetVerdict]);
@@ -151,8 +167,11 @@ export default function ProblemDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto w-full h-[calc(100vh-56px)] p-4 bg-zinc-50 dark:bg-zinc-950">
-        <SkeletonLoader count={1} className="h-full w-full rounded-2xl" />
+      <div className="flex h-[calc(100vh-56px)] w-full items-center justify-center bg-zinc-50 dark:bg-zinc-950 font-inter">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Loading problem workspace...</span>
+        </div>
       </div>
     );
   }
@@ -174,11 +193,7 @@ export default function ProblemDetailPage() {
   }
 
   return (
-    <AuthGuard
-      fallbackTitle="Sign In to Access Problem Workspace"
-      fallbackMessage="Please sign in with your student or faculty account to open the interactive code editor, test your algorithms, and submit solutions."
-    >
-      <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 font-inter">
+    <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950 font-inter">
         {/* ── Left Pane: Tabbed Problem Workspace ─────────────────────────── */}
         <div className="w-1/2 flex flex-col border-r border-zinc-200/60 dark:border-zinc-800/60 bg-white dark:bg-zinc-950 min-w-0">
           {/* Left Header Tabs */}
@@ -359,6 +374,5 @@ export default function ProblemDetailPage() {
           </div>
         </div>
       </div>
-    </AuthGuard>
   );
 }
