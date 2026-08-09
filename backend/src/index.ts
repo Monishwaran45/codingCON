@@ -26,6 +26,9 @@ import cronRouter        from './routes/cron';
 function createApp() {
   const app = express();
 
+  // Trust proxy for Render / Cloudflare / Vercel to extract real client IP from X-Forwarded-For
+  app.set('trust proxy', 1);
+
   // Response compression for better throughput
   if (performanceConfig.express.compression) {
     app.use(compression());
@@ -62,9 +65,9 @@ function createApp() {
 const app = createApp();
 
 // Rate limiters
-const authLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 15, message: 'Too many authentication attempts.' });
-const runLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 10, message: 'Too many code execution requests.' });
-const submissionLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 5, message: 'Submission rate limit exceeded.' });
+const authLimiter = createRateLimiter({ ...performanceConfig.rateLimit.auth, message: 'Too many authentication attempts.' });
+const runLimiter = createRateLimiter({ ...performanceConfig.rateLimit.run, message: 'Too many code execution requests. Please wait a moment.' });
+const submissionLimiter = createRateLimiter({ ...performanceConfig.rateLimit.submission, message: 'Submission rate limit exceeded. Please wait a moment.' });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',        authLimiter, authRouter);

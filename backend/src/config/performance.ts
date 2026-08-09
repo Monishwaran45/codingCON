@@ -29,17 +29,17 @@ export const performanceConfig = {
   rateLimit: {
     auth: {
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 15, // attempts
+      max: 20, // attempts
       skipSuccessfulRequests: true,
     },
     submission: {
       windowMs: 60 * 1000, // 1 minute
-      max: 5,
+      max: 10,
       skipSuccessfulRequests: false,
     },
     run: {
       windowMs: 60 * 1000, // 1 minute
-      max: 10,
+      max: 25,
       skipSuccessfulRequests: false,
     },
   },
@@ -76,9 +76,9 @@ export const performanceConfig = {
   // Concurrency Settings
   concurrency: {
     // Max concurrent judge jobs
-    maxJudgeJobs: process.env.MAX_JUDGE_JOBS ? parseInt(process.env.MAX_JUDGE_JOBS, 10) : 4,
+    maxJudgeJobs: process.env.MAX_JUDGE_JOBS ? parseInt(process.env.MAX_JUDGE_JOBS, 10) : 8,
     // Queue consumer concurrency
-    queueConcurrency: process.env.QUEUE_CONCURRENCY ? parseInt(process.env.QUEUE_CONCURRENCY, 10) : 2,
+    queueConcurrency: process.env.QUEUE_CONCURRENCY ? parseInt(process.env.QUEUE_CONCURRENCY, 10) : 4,
   },
 
   // Memory Management

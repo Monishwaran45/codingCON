@@ -1,0 +1,171 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    VERCEL FRONTEND DEPLOYMENT GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+Deploy CodingCON frontend to Vercel in 5 minutes.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: PREPARE VERCEL ACCOUNT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Go to https://vercel.com
+2. Sign up or log in (GitHub recommended)
+3. Connect GitHub account if not already done
+4. You'll see "Import Git Repository"
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: IMPORT PROJECT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Click "Add New" → "Project"
+2. Select "Import Git Repository"
+3. Search for "codingCON" in your repos
+4. Click "Import"
+
+You'll see project settings screen.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: CONFIGURE PROJECT SETTINGS
+═══════════════════════════════════════════════════════════════════════════════
+
+In the "Configure Project" screen:
+
+Project Name:
+  codingcon-frontend (or any name you prefer)
+
+Framework:
+  Next.js ✓ (auto-detected)
+
+Root Directory:
+  ./ (keep default, frontend is at root)
+
+Build Command:
+  npm run build ✓ (auto-detected)
+
+Output Directory:
+  .next ✓ (auto-detected)
+
+Install Command:
+  npm install ✓ (auto-detected)
+
+Environment Variables:
+  NEXT_PUBLIC_API_URL = https://your-render-backend.onrender.com
+  
+  (Replace with your actual Render backend URL after you deploy backend)
+
+Click "Deploy"
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: WAIT FOR DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Vercel will:
+  1. Clone your repository
+  2. Install dependencies: npm install
+  3. Build: npm run build
+  4. Deploy to CDN
+
+This takes 2-5 minutes.
+
+You'll see:
+  ✓ Building
+  ✓ Deploying
+  ✓ Ready!
+
+Once complete, you'll get a URL: https://codingcon-frontend.vercel.app
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: VERIFY DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+After deployment completes:
+
+1. Click the URL to open your frontend
+2. You should see the CodingCON login page
+3. Check console (F12) for errors
+
+Expected: No errors (auth will fail until backend is deployed)
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6: UPDATE ENVIRONMENT VARIABLE (AFTER BACKEND DEPLOYED)
+═══════════════════════════════════════════════════════════════════════════════
+
+Once you deploy backend to Render:
+
+1. Go to your Vercel project
+2. Click "Settings"
+3. Click "Environment Variables"
+4. Find "NEXT_PUBLIC_API_URL"
+5. Change value to your Render backend URL
+6. Save
+7. Click "Deployments" → "Redeploy"
+
+Your frontend will redeploy in ~1 minute.
+
+═══════════════════════════════════════════════════════════════════════════════
+FRONTEND URL
+═══════════════════════════════════════════════════════════════════════════════
+
+After deployment, your frontend will be at:
+  https://codingcon-frontend.vercel.app
+
+Or Vercel will assign a random URL:
+  https://<project-name>.vercel.app
+
+Use this URL to connect your backend.
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] Vercel account created
+[ ] GitHub connected
+[ ] codingCON imported
+[ ] Root directory: ./
+[ ] Framework: Next.js
+[ ] Build command: npm run build
+[ ] NEXT_PUBLIC_API_URL set
+[ ] Deployment started
+[ ] Deployment completed (2-5 min)
+[ ] Frontend URL received
+[ ] No build errors
+[ ] Page loads
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Issue: Build fails
+Solution:
+  - Check that root directory is ./
+  - Check that npm install works locally
+  - Check build logs in Vercel
+
+Issue: "Cannot find module" error
+Solution:
+  - Run `npm install` locally and push to GitHub
+  - Vercel will use package-lock.json
+
+Issue: Environment variable not found
+Solution:
+  - Use "NEXT_PUBLIC_" prefix
+  - Redeploy after changing env vars
+  - Wait 1 minute for rebuild
+
+Issue: CORS errors when calling backend
+Solution:
+  - This will be fixed after you deploy backend
+  - Backend needs CORS_ORIGIN = your frontend URL
+  - Set in Render environment variables
+
+═══════════════════════════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ Deploy frontend to Vercel (THIS STEP)
+2. Deploy backend to Render (NEXT)
+3. Update CORS_ORIGIN on Render
+4. Update NEXT_PUBLIC_API_URL on Vercel
+5. Test login and code execution
+
+═══════════════════════════════════════════════════════════════════════════════

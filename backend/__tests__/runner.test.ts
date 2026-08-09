@@ -353,3 +353,58 @@ describe('RunResult invariants', () => {
     expect(r.executionTimeMs).toBeGreaterThanOrEqual(r.netTimeMs);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. executeTestSuite — Batch evaluation with Single Compilation
+// ─────────────────────────────────────────────────────────────────────────────
+describe('executeTestSuite — Batch evaluation', () => {
+  const { executeTestSuite } = require('../src/judge/runner');
+
+  it('executes all test cases and returns AC when all pass', async () => {
+    const testCases = [
+      { id: 'tc-1', input: 'hello', expectedOutput: 'hello', isSample: true },
+      { id: 'tc-2', input: 'world', expectedOutput: 'world', isSample: false },
+    ];
+    const progressEvents: any[] = [];
+    const suite = await executeTestSuite(
+      'python',
+      'print("test")',
+      testCases,
+      1000,
+      (res: any, passed: number, total: number) => {
+        progressEvents.push({ res, passed, total });
+      },
+    );
+
+    expect(suite.finalVerdict).toBe('AC');
+    expect(suite.passedTestCases).toBe(2);
+    expect(suite.totalTestCases).toBe(2);
+    expect(suite.failedTestCase).toBeNull();
+    expect(progressEvents).toHaveLength(2);
+  });
+
+  it('stops on first failure and emits progress correctly', async () => {
+    const testCases = [
+      { id: 'tc-1', input: 'hello', expectedOutput: 'hello' },
+      { id: 'tc-2', input: 'wrong', expectedOutput: 'expected' },
+      { id: 'tc-3', input: 'unreachable', expectedOutput: 'unreachable' },
+    ];
+    const progressEvents: any[] = [];
+    const suite = await executeTestSuite(
+      'python',
+      'print("test")',
+      testCases,
+      1000,
+      (res: any, passed: number, total: number) => {
+        progressEvents.push({ res, passed, total });
+      },
+      true,
+    );
+
+    expect(suite.finalVerdict).toBe('WA');
+    expect(suite.passedTestCases).toBe(1);
+    expect(suite.failedTestCase).toBeDefined();
+    expect(suite.failedTestCase?.id).toBe('tc-2');
+    expect(progressEvents).toHaveLength(2);
+  });
+});

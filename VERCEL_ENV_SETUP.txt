@@ -1,0 +1,63 @@
+═══════════════════════════════════════════════════════════════════════════════
+            HOW TO ADD ENVIRONMENT VARIABLE IN VERCEL
+═══════════════════════════════════════════════════════════════════════════════
+
+STEP 1: Go to your Vercel project
+  https://vercel.com/dashboard
+
+STEP 2: Select "codingcon-frontend"
+
+STEP 3: Click "Settings" (top menu)
+
+STEP 4: Click "Environment Variables" (left sidebar)
+
+STEP 5: You'll see the Environments screen
+  - Production (tracked to main branch)
+  - Preview (other branches)
+  - Development (local)
+
+STEP 6: Click on "Production" to edit it
+
+STEP 7: Click "Edit" or "Add Variable"
+
+STEP 8: Add the environment variable:
+  
+  Key:   NEXT_PUBLIC_API_URL
+  Value: https://codingcon-backend-01b9.onrender.com
+  
+  Click "Save"
+
+STEP 9: Go back to "Deployments"
+  - Find latest deployment
+  - Click "Redeploy"
+  - Wait 1-2 minutes for rebuild
+
+STEP 10: Done!
+  Your frontend will now connect to your backend
+
+═══════════════════════════════════════════════════════════════════════════════
+SCREENSHOT WALKTHROUGH
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Dashboard → Select project
+2. Settings (top)
+3. Environment Variables (left)
+4. Click "Production"
+5. Click "Add New" or "Edit"
+6. Enter:
+   Key: NEXT_PUBLIC_API_URL
+   Value: https://codingcon-backend-01b9.onrender.com
+7. Save
+8. Go to Deployments
+9. Redeploy latest
+
+═══════════════════════════════════════════════════════════════════════════════
+YOUR BACKEND URL
+═══════════════════════════════════════════════════════════════════════════════
+
+Use this value:
+  https://codingcon-backend-01b9.onrender.com
+
+(This is your Render backend URL from the deployment logs)
+
+═══════════════════════════════════════════════════════════════════════════════

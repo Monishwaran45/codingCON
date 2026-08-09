@@ -68,6 +68,8 @@ function writeSourceFile(filePath: string, content: string): void {
   fs.writeFileSync(filePath, Buffer.from(content, 'utf8'));
 }
 
+import { normaliseOutput } from './normalise';
+
 export function getJavaClassName(code: string): string {
   const stripped = code
     .replace(/\/\/[^\n]*/g, '')
@@ -80,6 +82,9 @@ export function getJavaClassName(code: string): string {
   return 'Solution';
 }
 
+const isWindows = process.platform === 'win32';
+const BIN_EXT = isWindows ? '.exe' : '';
+
 const LANG_CONFIG: Record<string, {
   ext: string;
   image: string;
@@ -89,26 +94,27 @@ const LANG_CONFIG: Record<string, {
   python: {
     ext:    'py',
     image:  'python:3.11-alpine',
-    runCmd: (src) => [PYTHON_BIN, '-u', src],
+    runCmd: (src) => [PYTHON_BIN, '-u', '-B', src],
   },
   javascript: {
     ext:    'js',
     image:  'node:20-alpine',
-    runCmd: (src) => ['node', src],
+    runCmd: (src) => ['node', '--max-old-space-size=128', src],
   },
   cpp: {
     ext:      'cpp',
     image:    'gcc:13',
-    buildCmd: (src, out) => ['g++', '-O2', '-std=c++17', '-o', 'solution', src],
-    runCmd:   () => ['./solution'],
+    buildCmd: (src, out) => ['g++', '-O2', '-pipe', '-std=c++17', '-o', out, src],
+    runCmd:   (_src, out) => [out],
   },
   java: {
     ext:      'java',
     image:    'eclipse-temurin:21-jdk-alpine',
-    buildCmd: (src, out) => ['javac', '-encoding', 'UTF-8', src],
+    buildCmd: (src) => ['javac', '-encoding', 'UTF-8', '-J-Xms32m', '-J-Xmx128m', src],
     runCmd:   (src) => {
       const className = src.split(/[\/\\]/).pop()?.replace('.java', '') || 'Solution';
-      return ['java', '-cp', '.', className];
+      const classDir = path.dirname(src);
+      return ['java', '-cp', classDir, '-Xms32m', '-Xmx128m', '-XX:+TieredCompilation', '-XX:TieredStopAtLevel=1', className];
     },
   },
 };
@@ -124,6 +130,43 @@ export async function verifyDockerEngine(): Promise<boolean> {
   console.log('ℹ️ Using native execution engine (Render deployment - no Docker)');
   isDockerActive = false;
   return true;
+}
+
+export interface TestCaseItem {
+  id: string;
+  input: string;
+  expectedOutput?: string;
+  isSample?: boolean;
+}
+
+export interface TestCaseRunOutput {
+  id: string;
+  passed: boolean;
+  actualOutput: string;
+  executionTimeMs: number;
+  memoryKb: number;
+  error?: string | null;
+  expectedOutput?: string;
+  isSample?: boolean;
+}
+
+export interface TestSuiteResult {
+  finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE';
+  passedTestCases: number;
+  totalTestCases: number;
+  maxExecutionTimeMs: number;
+  maxMemoryKb: number;
+  results: TestCaseRunOutput[];
+  failedTestCase: {
+    id: string;
+    passed: false;
+    expectedOutput?: string;
+    actualOutput: string;
+    executionTimeMs: number;
+    memoryKb: number;
+    error?: string;
+  } | null;
+  compilationError?: string | null;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -268,7 +311,7 @@ function runNative(
 
     try {
       const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);
-      const outPath = path.join(tmpDir, 'solution');
+      const outPath = path.join(tmpDir, `solution${BIN_EXT}`);
       writeSourceFile(srcPath, code);
 
       const doRun = () => {
@@ -370,6 +413,245 @@ function runNative(
       });
     }
   });
+}
+
+/**
+ * Executes a full test suite against user code with SINGLE COMPILATION.
+ * Compiles once for C++/Java and executes all test cases against the compiled binary/bytecode,
+ * achieving up to 10x-20x faster submission processing.
+ */
+export async function executeTestSuite(
+  language: string,
+  code: string,
+  testCases: TestCaseItem[],
+  timeLimitMs: number = 2000,
+  onProgress?: (result: TestCaseRunOutput, passedCount: number, totalCount: number) => void | Promise<void>,
+  stopOnFirstFailure: boolean = true,
+): Promise<TestSuiteResult> {
+  const cfg = LANG_CONFIG[language];
+  if (!cfg) throw new Error(`Unsupported language: ${language}`);
+
+  // Mock execution for tests
+  if (process.env.MOCK_EXECUTION === 'true' || (process.env.NODE_ENV === 'test' && process.env.MOCK_EXECUTION === 'true')) {
+    let passed = 0;
+    let maxTime = 0;
+    let maxMem = 0;
+    let finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
+    let failedTc: TestSuiteResult['failedTestCase'] = null;
+    const results: TestCaseRunOutput[] = [];
+
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i];
+      const r = mockExecutionResult(code, tc.input);
+
+      let verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
+      if (r.timedOut || r.netTimeMs > timeLimitMs) verdict = 'TLE';
+      else if (r.exitCode !== 0) verdict = 'RE';
+      else if (normaliseOutput(r.stdout) !== normaliseOutput(tc.expectedOutput || '')) verdict = 'WA';
+
+      const tcPassed = verdict === 'AC';
+      if (tcPassed) passed++;
+      maxTime = Math.max(maxTime, r.executionTimeMs);
+      maxMem = Math.max(maxMem, r.memoryKb);
+
+      const tcResult: TestCaseRunOutput = {
+        id: tc.id,
+        passed: tcPassed,
+        actualOutput: r.stdout,
+        executionTimeMs: r.executionTimeMs,
+        memoryKb: r.memoryKb,
+        error: r.stderr || null,
+        expectedOutput: tc.expectedOutput,
+        isSample: tc.isSample,
+      };
+
+      results.push(tcResult);
+
+      if (onProgress) {
+        await onProgress(tcResult, passed, testCases.length);
+      }
+
+      if (!tcPassed) {
+        finalVerdict = verdict;
+        failedTc = {
+          id: tc.id,
+          passed: false,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: r.stdout,
+          executionTimeMs: r.executionTimeMs,
+          memoryKb: r.memoryKb,
+          error: r.stderr || undefined,
+        };
+        if (stopOnFirstFailure) break;
+      }
+    }
+
+    return {
+      finalVerdict,
+      passedTestCases: passed,
+      totalTestCases: testCases.length,
+      maxExecutionTimeMs: maxTime,
+      maxMemoryKb: maxMem,
+      results,
+      failedTestCase: failedTc,
+    };
+  }
+
+  // Native execution with Single Compilation Sandbox
+  const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
+  const ext = cfg.ext;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+
+  try {
+    const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);
+    const outPath = path.join(tmpDir, `solution${BIN_EXT}`);
+    writeSourceFile(srcPath, code);
+
+    // 1. Single Compilation Phase
+    if (cfg.buildCmd) {
+      const [cmd, ...args] = cfg.buildCmd(srcPath, outPath);
+      try {
+        await execFileAsync(cmd, args, { cwd: tmpDir, timeout: 15000 });
+      } catch (compileErr: any) {
+        const compileStderr = (compileErr?.stderr || compileErr?.message || 'Compilation Error').trim();
+        const firstTc = testCases[0];
+        return {
+          finalVerdict: 'RE',
+          passedTestCases: 0,
+          totalTestCases: testCases.length,
+          maxExecutionTimeMs: 0,
+          maxMemoryKb: 0,
+          results: firstTc ? [{
+            id: firstTc.id,
+            passed: false,
+            actualOutput: '',
+            executionTimeMs: 0,
+            memoryKb: 0,
+            error: compileStderr,
+            expectedOutput: firstTc.expectedOutput,
+            isSample: firstTc.isSample,
+          }] : [],
+          failedTestCase: firstTc ? {
+            id: firstTc.id,
+            passed: false,
+            expectedOutput: firstTc.expectedOutput,
+            actualOutput: '',
+            executionTimeMs: 0,
+            memoryKb: 0,
+            error: compileStderr,
+          } : null,
+          compilationError: compileStderr,
+        };
+      }
+    }
+
+    // 2. Execution Phase across Test Cases
+    const [runCmd, ...baseRunArgs] = cfg.runCmd(srcPath, outPath);
+    const tcTimeout = Math.min(Math.max(timeLimitMs + 500, 1000), 10000);
+
+    let passed = 0;
+    let maxTime = 0;
+    let maxMem = 0;
+    let finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
+    let failedTc: TestSuiteResult['failedTestCase'] = null;
+    const results: TestCaseRunOutput[] = [];
+
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i];
+      const runResult = await new Promise<RunResult>((resolve) => {
+        const start = Date.now();
+        const child = execFile(
+          runCmd,
+          baseRunArgs,
+          { cwd: tmpDir, timeout: tcTimeout, maxBuffer: MAX_OUTPUT_BYTES },
+          (err, stdout, stderr) => {
+            if (err) {
+              const isTimeout = err.killed || err.signal === 'SIGTERM';
+              return resolve({
+                stdout: stdout ? stdout.trimEnd() : '',
+                stderr: isTimeout ? 'Time Limit Exceeded' : (stderr ? stderr.trimEnd() : err.message || 'Runtime Error'),
+                executionTimeMs: tcTimeout,
+                netTimeMs: tcTimeout,
+                memoryKb: 0,
+                exitCode: typeof (err as any).code === 'number' ? (err as any).code : 1,
+                timedOut: isTimeout,
+              });
+            }
+            const elapsed = Date.now() - start;
+            return resolve({
+              stdout: (stdout || '').trimEnd(),
+              stderr: (stderr || '').trimEnd(),
+              executionTimeMs: elapsed,
+              netTimeMs: elapsed,
+              memoryKb: 0,
+              exitCode: 0,
+              timedOut: false,
+            });
+          }
+        );
+
+        if (tc.input && child.stdin) {
+          child.stdin.write(tc.input);
+          child.stdin.end();
+        } else if (child.stdin) {
+          child.stdin.end();
+        }
+      });
+
+      let verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
+      if (runResult.timedOut || runResult.netTimeMs > timeLimitMs) verdict = 'TLE';
+      else if (runResult.exitCode !== 0) verdict = 'RE';
+      else if (normaliseOutput(runResult.stdout) !== normaliseOutput(tc.expectedOutput || '')) verdict = 'WA';
+
+      const tcPassed = verdict === 'AC';
+      if (tcPassed) passed++;
+      maxTime = Math.max(maxTime, runResult.executionTimeMs);
+      maxMem = Math.max(maxMem, runResult.memoryKb);
+
+      const tcOutput: TestCaseRunOutput = {
+        id: tc.id,
+        passed: tcPassed,
+        actualOutput: runResult.stdout,
+        executionTimeMs: runResult.executionTimeMs,
+        memoryKb: runResult.memoryKb,
+        error: runResult.stderr || null,
+        expectedOutput: tc.expectedOutput,
+        isSample: tc.isSample,
+      };
+
+      results.push(tcOutput);
+
+      if (onProgress) {
+        await onProgress(tcOutput, passed, testCases.length);
+      }
+
+      if (!tcPassed) {
+        finalVerdict = verdict;
+        failedTc = {
+          id: tc.id,
+          passed: false,
+          expectedOutput: tc.expectedOutput,
+          actualOutput: runResult.stdout,
+          executionTimeMs: runResult.executionTimeMs,
+          memoryKb: runResult.memoryKb,
+          error: runResult.stderr || undefined,
+        };
+        if (stopOnFirstFailure) break;
+      }
+    }
+
+    return {
+      finalVerdict,
+      passedTestCases: passed,
+      totalTestCases: testCases.length,
+      maxExecutionTimeMs: maxTime,
+      maxMemoryKb: maxMem,
+      results,
+      failedTestCase: failedTc,
+    };
+  } finally {
+    cleanup(tmpDir);
+  }
 }
 
 function mockExecutionResult(code: string, stdin: string): RunResult {

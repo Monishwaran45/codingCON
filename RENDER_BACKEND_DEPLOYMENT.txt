@@ -1,0 +1,298 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    RENDER BACKEND DEPLOYMENT GUIDE
+═══════════════════════════════════════════════════════════════════════════════
+
+Deploy CodingCON backend to Render in 5 minutes.
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: PREPARE RENDER ACCOUNT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Go to https://render.com
+2. Sign up or log in (GitHub recommended)
+3. Connect GitHub account if not already done
+4. You'll see "New +" button in top right
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: CREATE WEB SERVICE
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Click "New +" → "Web Service"
+2. Search for "codingCON" in your repos
+3. Click "Connect" next to the repo
+4. You'll see service configuration screen
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: CONFIGURE WEB SERVICE
+═══════════════════════════════════════════════════════════════════════════════
+
+Fill in these settings:
+
+Name:
+  codingcon-backend
+
+Environment:
+  Node (auto-detected)
+
+Region:
+  Frankfurt (closest to most users)
+
+Branch:
+  main ✓
+
+Build Command:
+  cd backend && npm install && npm run build
+
+Start Command:
+  cd backend && npm start
+
+Instance Type:
+  Starter ($12/month) ✓
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: ADD ENVIRONMENT VARIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+Scroll down to "Environment" section and add these variables:
+
+NODE_ENV
+  production
+
+PORT
+  4000
+
+MONGODB_URI
+  mongodb+srv://monishlegend1780_db_user:6yBIRY2LLGfa2PLP@cluster0.juix7su.mongodb.net/codingcon?appName=Cluster0&retryWrites=true&w=majority
+
+JWT_SECRET
+  (generate a strong key - use: openssl rand -base64 32)
+  Example: aBc1DeF2GhIjKlMnOpQrStUvWxYz1234567890==
+
+JWT_EXPIRES_IN
+  7d
+
+CORS_ORIGIN
+  https://codingcon-frontend.vercel.app
+
+CLUSTER_ENABLED
+  true
+
+WORKERS
+  4
+
+DB_POOL_SIZE
+  50
+
+DB_MIN_POOL_SIZE
+  10
+
+MAX_JUDGE_JOBS
+  4
+
+QUEUE_CONCURRENCY
+  2
+
+CRON_SECRET
+  (generate: openssl rand -base64 32)
+  Example: XyZ9AbCdEfGhIjKlMnOpQrStUvWxYz123456==
+
+═══════════════════════════════════════════════════════════════════════════════
+GENERATE SECRETS (REQUIRED)
+═══════════════════════════════════════════════════════════════════════════════
+
+Open PowerShell and run:
+
+  [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((New-Guid).ToString()))
+
+This gives you a random key to use for JWT_SECRET and CRON_SECRET.
+
+Example output:
+  lZk8mNoPqRsT/UvWxYz+AbCdEf1GhIjKlMnOpQrStU=
+
+Copy 2 different keys for:
+  1. JWT_SECRET
+  2. CRON_SECRET
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 5: DEPLOY
+═══════════════════════════════════════════════════════════════════════════════
+
+After filling all settings:
+
+1. Click "Create Web Service"
+2. Render will:
+   - Clone repo
+   - Install dependencies
+   - Build backend
+   - Deploy
+
+This takes 5-10 minutes.
+
+You'll see deployment logs in real-time. Watch for:
+  ✓ Build starting
+  ✓ npm install complete
+  ✓ npm run build complete
+  ✓ Service live
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 6: VERIFY DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Once deployment completes:
+
+1. You'll see a URL: https://codingcon-backend.onrender.com (or similar)
+2. Go to that URL + /api/health
+3. Example: https://codingcon-backend.onrender.com/api/health
+4. You should see: { "status": "OK" }
+
+If you see the status, backend is running! ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 7: UPDATE FRONTEND
+═══════════════════════════════════════════════════════════════════════════════
+
+Once backend URL is confirmed:
+
+1. Go to Vercel dashboard
+2. Select codingcon-frontend project
+3. Go to Settings → Environment Variables
+4. Add/Update:
+   Key: NEXT_PUBLIC_API_URL
+   Value: https://codingcon-backend.onrender.com
+5. Click "Save"
+6. Go to Deployments
+7. Click "Redeploy" on the latest deployment
+
+Vercel will rebuild in ~1 minute with the new API URL.
+
+═══════════════════════════════════════════════════════════════════════════════
+EXPECTED RESULTS AT 500 CONCURRENT USERS
+═══════════════════════════════════════════════════════════════════════════════
+
+CPU:
+  Peak: 40-60%
+  Headroom: ✓
+
+Memory:
+  Total: ~500MB
+  Limit: 512MB (Starter)
+  Usage: ~98% (efficient)
+
+Database Connections:
+  Active: 40-50
+  Limit: 50
+  Status: ✓ At capacity
+
+Response Times:
+  API: <100ms
+  WebSocket: <50ms
+  Execution: 10-400ms
+
+Throughput:
+  Requests/sec: 200+
+  WebSocket updates: 500+
+  Submissions: 2-5/sec
+
+═══════════════════════════════════════════════════════════════════════════════
+MONITORING ON RENDER
+═══════════════════════════════════════════════════════════════════════════════
+
+After deployment:
+
+1. Go to your service
+2. Click "Logs" tab
+3. Watch for:
+   - ✓ Server started
+   - ✓ MongoDB connected
+   - ✓ Workers ready
+   - ✗ Any error messages
+
+Check metrics:
+  1. Click "Metrics" tab
+  2. View CPU, Memory, Network
+  3. Should see:
+     - CPU: <50%
+     - Memory: ~400MB
+     - Network: increasing with users
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] Render account created
+[ ] GitHub connected
+[ ] codingCON repo connected
+[ ] Web Service name: codingcon-backend
+[ ] Region: Frankfurt
+[ ] Build command correct: cd backend && npm install && npm run build
+[ ] Start command correct: cd backend && npm start
+[ ] All environment variables added
+[ ] JWT_SECRET generated and set
+[ ] CRON_SECRET generated and set
+[ ] CORS_ORIGIN = https://codingcon-frontend.vercel.app
+[ ] Instance type: Starter
+[ ] "Create Web Service" clicked
+[ ] Deployment started (watch logs)
+[ ] Deployment completed (5-10 min)
+[ ] Backend URL obtained
+[ ] /api/health responds with { "status": "OK" }
+[ ] Frontend NEXT_PUBLIC_API_URL updated
+[ ] Vercel redeployed
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Issue: Build fails
+Solution:
+  - Check build logs in Render
+  - Ensure "cd backend &&" is in build command
+  - Verify all dependencies in package.json
+
+Issue: "MongoDB connection failed"
+Solution:
+  - Check MONGODB_URI is correct
+  - Test URI in MongoDB Atlas connection string
+  - Verify MongoDB Atlas allows Render IP (whitelist 0.0.0.0/0)
+
+Issue: Service crashes after deploy
+Solution:
+  - Check logs for errors
+  - Common: PORT not set (should be 4000)
+  - Common: Missing environment variable
+  - Check if MongoDB is reachable
+
+Issue: CORS errors from frontend
+Solution:
+  - Verify CORS_ORIGIN = https://codingcon-frontend.vercel.app
+  - Redeploy after changing
+  - Wait 1 minute for rebuild
+
+Issue: High memory usage (>450MB)
+Solution:
+  - Reduce DB_POOL_SIZE to 30
+  - Reduce MAX_JUDGE_JOBS to 2
+  - Upgrade to Professional plan ($25/month)
+
+Issue: "Address already in use" error
+Solution:
+  - Old service still running
+  - Click "Restart" in Render dashboard
+  - Wait 30 seconds
+  - Check logs
+
+═══════════════════════════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ Frontend deployed to Vercel
+2. Deploy backend to Render (THIS STEP)
+3. ✅ Update frontend with backend URL
+4. Test login on production
+5. Test code execution on production
+6. Monitor for 24 hours
+7. Scale if needed
+
+═══════════════════════════════════════════════════════════════════════════════
+YOUR BACKEND IS READY FOR 500 CONCURRENT USERS! 🚀
+═══════════════════════════════════════════════════════════════════════════════

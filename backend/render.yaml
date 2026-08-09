@@ -11,6 +11,14 @@ services:
         value: 4000
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=460
+      - key: MAX_JUDGE_JOBS
+        value: 8
+      - key: QUEUE_CONCURRENCY
+        value: 4
+      - key: MAX_CONCURRENT_RUNS
+        value: 25
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET

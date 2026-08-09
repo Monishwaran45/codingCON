@@ -7,22 +7,7 @@ import { requireAuth, requirePermission, AuthRequest } from '../middleware/auth'
 const router = Router();
 
 // ── helper ────────────────────────────────────────────────────────────────────
-async function hydrateProblem(problem: IProblem, userId?: string) {
-  let isSolved = false;
-  let isAttempted = false;
-  let lastAttemptedAt: string | undefined;
-
-  if (userId) {
-    const latest = await Submission.findOne({ problemId: problem._id, userId })
-      .sort({ createdAt: -1 })
-      .select('verdict createdAt');
-    if (latest) {
-      isAttempted = true;
-      lastAttemptedAt = latest.createdAt.toISOString();
-      isSolved = latest.verdict === 'AC';
-    }
-  }
-
+function formatProblem(problem: IProblem, userStatus?: { isSolved: boolean; isAttempted: boolean; lastAttemptedAt?: string }) {
   const sampleTestCases = (problem.testCases || [])
     .filter((t) => t.isSample)
     .map((t) => ({
@@ -46,11 +31,31 @@ async function hydrateProblem(problem: IProblem, userId?: string) {
     inputFormat: problem.inputFormat,
     outputFormat: problem.outputFormat,
     tags: problem.tags || [],
-    isSolved,
-    isAttempted,
-    lastAttemptedAt,
+    isSolved: userStatus?.isSolved ?? false,
+    isAttempted: userStatus?.isAttempted ?? false,
+    lastAttemptedAt: userStatus?.lastAttemptedAt,
     sampleTestCases,
   };
+}
+
+async function hydrateProblem(problem: IProblem, userId?: string) {
+  let isSolved = false;
+  let isAttempted = false;
+  let lastAttemptedAt: string | undefined;
+
+  if (userId) {
+    const latest = await Submission.findOne({ problemId: problem._id, userId })
+      .sort({ createdAt: -1 })
+      .select('verdict createdAt')
+      .lean();
+    if (latest) {
+      isAttempted = true;
+      lastAttemptedAt = new Date(latest.createdAt).toISOString();
+      isSolved = latest.verdict === 'AC';
+    }
+  }
+
+  return formatProblem(problem, { isSolved, isAttempted, lastAttemptedAt });
 }
 
 // ── GET /api/problems ─────────────────────────────────────────────────────────
@@ -58,7 +63,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
   try {
     const { difficulty, tag, q } = req.query as { difficulty?: string; tag?: string; q?: string };
 
-    const activeContests = await import('../db/models/Contest').then(m => m.Contest.find({ endTime: { $gt: new Date() } }));
+    const activeContests = await import('../db/models/Contest').then(m => m.Contest.find({ endTime: { $gt: new Date() } }).select('problemIds').lean());
     const hiddenProblemIds = activeContests.flatMap(c => c.problemIds || []);
 
     const query: Record<string, unknown> = { 
@@ -69,11 +74,32 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
       query.difficulty = difficulty;
     }
 
-    const docs = await Problem.find(query);
+    // 1. Fetch problems and user submissions concurrently in 2 fast queries
+    const [docs, userSubs] = await Promise.all([
+      Problem.find(query).lean(),
+      Submission.find({ userId: req.user!.id })
+        .sort({ createdAt: -1 })
+        .select('problemId verdict createdAt')
+        .lean(),
+    ]);
 
-    let problems = await Promise.all(
-      docs.map((doc) => hydrateProblem(doc, req.user!.id)),
-    );
+    // 2. Build in-memory map of user submission statuses
+    const userStatusMap = new Map<string, { isSolved: boolean; isAttempted: boolean; lastAttemptedAt?: string }>();
+    for (const sub of userSubs) {
+      const existing = userStatusMap.get(sub.problemId);
+      const isAc = sub.verdict === 'AC';
+      if (!existing) {
+        userStatusMap.set(sub.problemId, {
+          isSolved: isAc,
+          isAttempted: true,
+          lastAttemptedAt: new Date(sub.createdAt).toISOString(),
+        });
+      } else if (isAc) {
+        existing.isSolved = true;
+      }
+    }
+
+    let problems = docs.map((doc) => formatProblem(doc as any, userStatusMap.get(doc._id)));
 
     if (tag) {
       const lt = tag.toLowerCase();

@@ -15,20 +15,31 @@ import { runCode, RunResult } from '../judge/runner';
 const router = Router();
 
 const SUPPORTED_LANGUAGES = ['python', 'javascript', 'cpp', 'java'];
-const MAX_CONCURRENT_RUNS = 5;
+const MAX_CONCURRENT_RUNS = Number(process.env.MAX_CONCURRENT_RUNS ?? 25);
 let activeRunCount = 0;
 const runQueue: Array<() => void> = [];
 
-async function acquireRunSlot(): Promise<void> {
+async function acquireRunSlot(timeoutMs = 8000): Promise<void> {
   if (activeRunCount < MAX_CONCURRENT_RUNS) {
     activeRunCount++;
     return;
   }
-  return new Promise((resolve) => {
-    runQueue.push(() => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const idx = runQueue.indexOf(cb);
+      if (idx !== -1) {
+        runQueue.splice(idx, 1);
+        reject(new Error('Server busy: Execution queue wait timed out. Please retry.'));
+      }
+    }, timeoutMs);
+
+    const cb = () => {
+      clearTimeout(timer);
       activeRunCount++;
       resolve();
-    });
+    };
+
+    runQueue.push(cb);
   });
 }
 

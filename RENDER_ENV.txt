@@ -1,0 +1,129 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    RENDER ENVIRONMENT VARIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+COPY AND PASTE THESE INTO RENDER ENVIRONMENT VARIABLES SECTION
+
+═══════════════════════════════════════════════════════════════════════════════
+
+NODE_ENV=production
+PORT=4000
+MONGODB_URI=mongodb+srv://monishlegend1780_db_user:6yBIRY2LLGfa2PLP@cluster0.juix7su.mongodb.net/codingcon?appName=Cluster0&retryWrites=true&w=majority
+JWT_SECRET=YWVjMjZhYjQtMmJjZC00MzlhLWJiNTYtMmYxMzJiZmIwOTQx
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=https://codingcon-frontend.vercel.app
+CLUSTER_ENABLED=true
+WORKERS=4
+DB_POOL_SIZE=50
+DB_MIN_POOL_SIZE=10
+MAX_JUDGE_JOBS=4
+QUEUE_CONCURRENCY=2
+CRON_SECRET=YmUxOGFlZDMtZDZhOC00YjgwLThjMDktYzI4YjYzMGU2NmQ0
+
+═══════════════════════════════════════════════════════════════════════════════
+HOW TO ADD TO RENDER
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Go to https://render.com
+2. Click "New +" → "Web Service"
+3. Connect codingCON repository
+4. Fill in settings:
+   - Name: codingcon-backend
+   - Region: Frankfurt
+   - Build Command: cd backend && npm install && npm run build
+   - Start Command: cd backend && npm start
+   - Instance Type: Starter
+
+5. Scroll to "Environment" section
+6. Add each variable:
+   - Key: NODE_ENV
+   - Value: production
+   (repeat for each line above)
+
+OR paste all at once if Render supports it.
+
+═══════════════════════════════════════════════════════════════════════════════
+VARIABLE DESCRIPTIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+NODE_ENV=production
+  ↳ Sets environment to production mode
+
+PORT=4000
+  ↳ Backend runs on port 4000
+
+MONGODB_URI=mongodb+srv://...
+  ↳ Connection string to MongoDB Atlas database
+
+JWT_SECRET=YWVjMjZhYjQt...
+  ↳ Secret key for JWT token signing (randomly generated)
+
+JWT_EXPIRES_IN=7d
+  ↳ JWT tokens expire after 7 days
+
+CORS_ORIGIN=https://codingcon-frontend.vercel.app
+  ↳ Allow requests from your Vercel frontend
+
+CLUSTER_ENABLED=true
+  ↳ Enable Node.js clustering for multi-core CPU
+
+WORKERS=4
+  ↳ Spawn 4 worker processes (handles ~500 users)
+
+DB_POOL_SIZE=50
+  ↳ Maximum MongoDB connections in pool
+
+DB_MIN_POOL_SIZE=10
+  ↳ Minimum MongoDB connections in pool
+
+MAX_JUDGE_JOBS=4
+  ↳ Maximum concurrent code judgments
+
+QUEUE_CONCURRENCY=2
+  ↳ Maximum concurrent queue workers
+
+CRON_SECRET=YmUxOGFlZDMt...
+  ↳ Secret key for scheduled tasks (randomly generated)
+
+═══════════════════════════════════════════════════════════════════════════════
+STEPS TO DEPLOY
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Go to https://render.com
+2. Sign in with GitHub
+3. Click "New +" → "Web Service"
+4. Select "Monishwaran45/codingCON"
+5. Click "Connect"
+
+Configuration:
+  ✓ Name: codingcon-backend
+  ✓ Environment: Node
+  ✓ Region: Frankfurt
+  ✓ Branch: main
+  ✓ Build Command: cd backend && npm install && npm run build
+  ✓ Start Command: cd backend && npm start
+  ✓ Instance Type: Starter ($12/month)
+
+Environment Variables:
+  ✓ Add all variables above
+
+Click "Create Web Service"
+
+Wait 5-10 minutes for deployment...
+
+═══════════════════════════════════════════════════════════════════════════════
+VERIFY DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Once deployment completes, you'll get a URL:
+   https://codingcon-backend.onrender.com
+
+2. Test it:
+   https://codingcon-backend.onrender.com/api/health
+   
+3. Should return:
+   { "status": "OK" }
+
+4. If you see this, backend is working! ✅
+
+═══════════════════════════════════════════════════════════════════════════════

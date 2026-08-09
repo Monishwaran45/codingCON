@@ -47,16 +47,14 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
 // ── GET /api/leaderboard/:contestId ──────────────────────────────────────────
 router.get('/:contestId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await recalculateLeaderboard(req.params.contestId);
-
     const docs = await Leaderboard.find({ contestId: req.params.contestId }).sort({
       totalScore: -1,
       penaltyTimeMinutes: 1,
-    });
+    }).lean();
 
     res.json(
       docs.map((r, idx) => {
-        // Convert Map to plain object
+        // Convert Map or Object to plain object
         const breakdownObj: Record<string, IProblemBreakdown> = {};
         if (r.problemBreakdown instanceof Map) {
           r.problemBreakdown.forEach((val, key) => {
@@ -99,93 +97,111 @@ router.post(
   },
 );
 
-// ── Exported helper — called by judge after each submission ────────────
+// ── Exported helper — called asynchronously by judge after submission ────────────
 export async function recalculateLeaderboard(contestId: string): Promise<void> {
   try {
-    const contest = await Contest.findById(contestId);
+    const contest = await Contest.findById(contestId).lean();
     if (!contest || contest.isLeaderboardFrozen) return;
 
-    const contestStart = contest.startTime.getTime();
+    const contestStart = new Date(contest.startTime).getTime();
     const problemIds = contest.problemIds || [];
 
-    const lbEntries = await Leaderboard.find({ contestId });
-    const submissionUserIds = await Submission.distinct('userId', {
+    // 1. Fetch problems in 1 query
+    const problems = await Problem.find({ _id: { $in: problemIds } }).select('_id points').lean();
+    const problemPointsMap = new Map(problems.map(p => [p._id, p.points || 0]));
+
+    // 2. Fetch all submissions for the contest in 1 query
+    const submissions = await Submission.find({
       $or: [
         { contestId },
         { createdAt: { $gte: contest.startTime, $lte: contest.endTime } },
       ],
+    }).sort({ createdAt: 1 }).lean();
+
+    // 3. Collect unique user IDs and fetch usernames in 1 query
+    const userIds = new Set<string>();
+    submissions.forEach(s => userIds.add(s.userId));
+    
+    const existingEntries = await Leaderboard.find({ contestId }).lean();
+    existingEntries.forEach(e => userIds.add(e.userId));
+
+    const users = await User.find({ _id: { $in: Array.from(userIds) } }).select('_id username').lean();
+    const userMap = new Map<string, string>();
+    users.forEach(u => userMap.set(u._id, u.username));
+    existingEntries.forEach(e => {
+      if (!userMap.has(e.userId)) userMap.set(e.userId, e.username);
     });
 
-    const userMap = new Map<string, string>();
-    for (const e of lbEntries) {
-      userMap.set(e.userId, e.username);
-    }
-    for (const uid of submissionUserIds) {
-      if (!userMap.has(uid)) {
-        const u = await User.findById(uid).select('username');
-        if (u) userMap.set(uid, u.username);
+    // 4. In-memory aggregation: group submissions by userId and problemId
+    const userSubmissions = new Map<string, typeof submissions>();
+    for (const sub of submissions) {
+      let list = userSubmissions.get(sub.userId);
+      if (!list) {
+        list = [];
+        userSubmissions.set(sub.userId, list);
       }
+      list.push(sub);
     }
+
+    const bulkOps: any[] = [];
 
     for (const [userId, username] of Array.from(userMap.entries())) {
       let totalScore = 0;
       let totalPenalty = 0;
       let solvedCount = 0;
-      const breakdown = new Map<string, IProblemBreakdown>();
+      const breakdown: Record<string, IProblemBreakdown> = {};
+
+      const userSubs = userSubmissions.get(userId) || [];
 
       for (const problemId of problemIds) {
-        const subs = await Submission.find({
-          userId,
-          problemId,
-          $or: [
-            { contestId },
-            { createdAt: { $gte: contest.startTime, $lte: contest.endTime } },
-          ],
-        }).sort({ createdAt: 1 });
+        const problemSubs = userSubs.filter(s => s.problemId === problemId);
 
-        if (subs.length === 0) {
-          breakdown.set(problemId, { score: 0, attempted: false });
+        if (problemSubs.length === 0) {
+          breakdown[problemId] = { score: 0, attempted: false };
           continue;
         }
 
-        breakdown.set(problemId, { score: 0, attempted: true });
-        const acSub = subs.find((s) => s.verdict === 'AC' && s.isSubmit);
+        breakdown[problemId] = { score: 0, attempted: true };
+        const acSub = problemSubs.find((s) => s.verdict === 'AC' && s.isSubmit);
         if (!acSub) continue;
 
-        const problem = await Problem.findById(problemId);
-        if (!problem) continue;
-
-        const minutesSinceStart = Math.floor(
-          (acSub.createdAt.getTime() - contestStart) / 60000,
-        );
-        const wrongAttempts = subs.filter(
-          (s) => s.verdict !== 'AC' && s.isSubmit && s.createdAt < acSub.createdAt,
+        const points = problemPointsMap.get(problemId) || 0;
+        const subTime = new Date(acSub.createdAt).getTime();
+        const minutesSinceStart = Math.floor((subTime - contestStart) / 60000);
+        const wrongAttempts = problemSubs.filter(
+          (s) => s.verdict !== 'AC' && s.isSubmit && new Date(s.createdAt).getTime() < subTime,
         ).length;
 
-        breakdown.set(problemId, {
-          score: problem.points,
+        breakdown[problemId] = {
+          score: points,
           attempted: true,
-          solvedTime: acSub.createdAt.toISOString(),
-        });
-        totalScore += problem.points;
+          solvedTime: new Date(acSub.createdAt).toISOString(),
+        };
+        totalScore += points;
         totalPenalty += Math.max(0, minutesSinceStart) + wrongAttempts * 20;
         solvedCount++;
       }
 
-      await Leaderboard.findOneAndUpdate(
-        { contestId, userId },
-        {
-          $set: {
-            username,
-            solvedCount,
-            totalScore,
-            penaltyTimeMinutes: totalPenalty,
-            problemBreakdown: breakdown,
-            lastUpdated: new Date(),
+      bulkOps.push({
+        updateOne: {
+          filter: { contestId, userId },
+          update: {
+            $set: {
+              username,
+              solvedCount,
+              totalScore,
+              penaltyTimeMinutes: totalPenalty,
+              problemBreakdown: breakdown,
+              lastUpdated: new Date(),
+            },
           },
+          upsert: true,
         },
-        { upsert: true },
-      );
+      });
+    }
+
+    if (bulkOps.length > 0) {
+      await Leaderboard.bulkWrite(bulkOps);
     }
   } catch (err) {
     console.error('recalculateLeaderboard error:', err);

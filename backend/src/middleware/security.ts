@@ -18,7 +18,9 @@ export function createRateLimiter(options: {
   const { windowMs, max, message = 'Too many requests, please try again later.' } = options;
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    const key = `${req.ip}_${req.baseUrl}${req.path}`;
+    // If request is authenticated, key by user ID; otherwise key by client IP
+    const identifier = (req as any).user?.id || req.ip || 'anonymous';
+    const key = `${identifier}_${req.baseUrl || ''}${req.path || ''}`;
     const now = Date.now();
     const windowStart = now - windowMs;
 
@@ -30,6 +32,16 @@ export function createRateLimiter(options: {
 
     // Clean up timestamps outside current window
     record.timestamps = record.timestamps.filter((ts) => ts > windowStart);
+
+    // Prune stale map entries periodically
+    if (memoryRateLimitStore.size > 2000) {
+      for (const [k, v] of memoryRateLimitStore.entries()) {
+        v.timestamps = v.timestamps.filter((ts) => ts > windowStart);
+        if (v.timestamps.length === 0) {
+          memoryRateLimitStore.delete(k);
+        }
+      }
+    }
 
     if (record.timestamps.length >= max) {
       res.setHeader('Retry-After', Math.ceil(windowMs / 1000));

@@ -1,14 +1,17 @@
 /**
  * In-Memory Job Queue
- * Used for Render deployment where RabbitMQ is not available
- * Processes judge jobs asynchronously using EventEmitter
+ * Used for Render deployment where RabbitMQ is not available.
+ * Processes judge jobs asynchronously using EventEmitter and single-compilation batch evaluation.
  */
 
 import { EventEmitter } from 'events';
 import { ISubmissionResult, Submission } from '../db/models/Submission';
 import { Problem, ITestCase } from '../db/models/Problem';
-import { runCode } from '../judge/runner';
-import { normaliseOutput } from '../judge/normalise';
+import { User } from '../db/models/User';
+import { Leaderboard, IProblemBreakdown } from '../db/models/Leaderboard';
+import { executeTestSuite, TestCaseItem, TestCaseRunOutput } from '../judge/runner';
+import { recalculateLeaderboard } from '../routes/leaderboard';
+import { performanceConfig } from '../config/performance';
 import { v4 as uuid } from 'uuid';
 
 export interface JudgeJob {
@@ -31,8 +34,7 @@ interface SocketEvent {
 
 class InMemoryQueue extends EventEmitter {
   private queue: JudgeJob[] = [];
-  private processing = false;
-  private concurrency = 4;
+  private concurrency = performanceConfig.concurrency.maxJudgeJobs || 8;
   private activeJobs = 0;
 
   constructor() {
@@ -89,129 +91,160 @@ class InMemoryQueue extends EventEmitter {
   }
 
   /**
-   * Run judge on a submission
+   * Run judge on a submission using single-compilation batch evaluation
    */
   private async runJudge(job: JudgeJob): Promise<void> {
     const room = `submission:${job.submissionId}`;
-    let passed = 0;
-    let maxTime = 0;
-    let maxMem = 0;
-    let finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
-    let failedTc: null | {
-      id: string; passed: false; expectedOutput: string; actualOutput: string;
-      executionTimeMs: number; memoryKb: number; error?: string;
-    } = null;
     const resultsToStore: ISubmissionResult[] = [];
 
-    for (let i = 0; i < job.testCases.length; i++) {
-      const tc = job.testCases[i];
+    const testCaseItems: TestCaseItem[] = job.testCases.map((tc) => ({
+      id: tc.id,
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      isSample: tc.isSample,
+    }));
 
-      try {
-        const result = await runCode(job.language, job.code, tc.input);
+    // Real-time progress callback for WebSocket streaming
+    const onProgress = (tcOutput: TestCaseRunOutput, passedCount: number, totalCount: number) => {
+      resultsToStore.push({
+        id: uuid(),
+        testCaseId: tcOutput.id,
+        passed: tcOutput.passed,
+        actualOutput: tcOutput.actualOutput,
+        executionTimeMs: tcOutput.executionTimeMs,
+        memoryKb: tcOutput.memoryKb,
+        error: tcOutput.error || null,
+        sortOrder: resultsToStore.length,
+      });
 
-        let verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
-        if (result.timedOut || result.netTimeMs > job.timeLimitMs) verdict = 'TLE';
-        else if (result.exitCode !== 0) verdict = 'RE';
-        else if (normaliseOutput(result.stdout) !== normaliseOutput(tc.expectedOutput)) verdict = 'WA';
-
-        const tcPassed = verdict === 'AC';
-        if (tcPassed) passed++;
-        maxTime = Math.max(maxTime, result.executionTimeMs);
-        maxMem = Math.max(maxMem, result.memoryKb);
-
-        resultsToStore.push({
-          id: uuid(),
-          testCaseId: tc.id,
-          passed: tcPassed,
-          actualOutput: result.stdout,
-          executionTimeMs: result.executionTimeMs,
-          memoryKb: result.memoryKb,
-          error: result.stderr || null,
-          sortOrder: i,
-        });
-
-        // Emit socket event for real-time update
-        this.emit('socketEvent', {
-          room,
-          eventName: 'submission:progress',
-          data: {
-            submissionId: job.submissionId,
-            passedTestCases: passed,
-            totalTestCases: job.testCases.length,
-            isStreaming: true,
-            testCaseResult: {
-              id: tc.id,
-              passed: tcPassed,
-              executionTimeMs: result.executionTimeMs,
-              memoryKb: result.memoryKb,
-              ...(tc.isSample ? { expectedOutput: tc.expectedOutput, actualOutput: result.stdout } : {}),
-              ...(result.stderr ? { error: result.stderr } : {}),
-            },
+      this.emit('socketEvent', {
+        room,
+        eventName: 'submission:progress',
+        data: {
+          submissionId: job.submissionId,
+          passedTestCases: passedCount,
+          totalTestCases: totalCount,
+          isStreaming: true,
+          testCaseResult: {
+            id: tcOutput.id,
+            passed: tcOutput.passed,
+            executionTimeMs: tcOutput.executionTimeMs,
+            memoryKb: tcOutput.memoryKb,
+            ...(tcOutput.isSample ? { expectedOutput: tcOutput.expectedOutput, actualOutput: tcOutput.actualOutput } : {}),
+            ...(tcOutput.error ? { error: tcOutput.error } : {}),
           },
-        } as SocketEvent);
+        },
+      } as SocketEvent);
+    };
 
-        console.log(`[Judge] Test case ${tc.id}: ${tcPassed ? 'PASSED' : 'FAILED'} (${passed}/${job.testCases.length})`);
-        console.log(`[Judge] Emitted socketEvent to room: ${room}`);
+    const suiteResult = await executeTestSuite(
+      job.language,
+      job.code,
+      testCaseItems,
+      job.timeLimitMs,
+      onProgress,
+      true, // stop on first failure
+    );
 
-        if (!tcPassed) {
-          finalVerdict = verdict;
-          if (!failedTc) {
-            failedTc = {
-              id: tc.id,
-              passed: false,
-              expectedOutput: tc.expectedOutput,
-              actualOutput: result.stdout,
-              executionTimeMs: result.executionTimeMs,
-              memoryKb: result.memoryKb,
-              ...(result.stderr ? { error: result.stderr } : {}),
-            };
-          }
-          break;
-        }
-      } catch (error) {
-        console.error(`[Worker] Error running test case ${tc.id}:`, error);
-        finalVerdict = 'RE';
+    // If compilation error occurred or no progress ran
+    if (resultsToStore.length === 0 && suiteResult.results.length > 0) {
+      suiteResult.results.forEach((r, idx) => {
         resultsToStore.push({
           id: uuid(),
-          testCaseId: tc.id,
-          passed: false,
-          actualOutput: '',
-          executionTimeMs: 0,
-          memoryKb: 0,
-          error: String(error),
-          sortOrder: i,
+          testCaseId: r.id,
+          passed: r.passed,
+          actualOutput: r.actualOutput,
+          executionTimeMs: r.executionTimeMs,
+          memoryKb: r.memoryKb,
+          error: r.error || null,
+          sortOrder: idx,
         });
-        break;
-      }
+      });
     }
 
     // Update submission with final results
     await Submission.findByIdAndUpdate(job.submissionId, {
-      verdict: finalVerdict,
-      passedTestCases: passed,
-      executionTimeMs: maxTime,
-      memoryKb: maxMem,
+      verdict: suiteResult.finalVerdict,
+      passedTestCases: suiteResult.passedTestCases,
+      executionTimeMs: suiteResult.maxExecutionTimeMs,
+      memoryKb: suiteResult.maxMemoryKb,
       testCaseResults: resultsToStore,
     });
 
-    console.log(`[Judge] Finished job: ${job.submissionId} - Verdict: ${finalVerdict}`);
+    await Problem.findByIdAndUpdate(job.problemId, { $inc: { totalSubmissions: 1 } });
 
-    // Emit final socket event (includes failedTestCase for the DiffViewer)
+    // Handle problem & user score updates if AC
+    if (suiteResult.finalVerdict === 'AC' && job.isSubmit) {
+      const alreadySolved = await Submission.findOne({
+        userId: job.userId,
+        problemId: job.problemId,
+        verdict: 'AC',
+        _id: { $ne: job.submissionId },
+      });
+
+      if (!alreadySolved) {
+        const problem = await Problem.findById(job.problemId).select('points');
+        const points = problem?.points || 0;
+        await User.findByIdAndUpdate(job.userId, {
+          $inc: { solvedCount: 1, totalPoints: points },
+        });
+      }
+
+      const totalSubmissions = await Submission.countDocuments({ problemId: job.problemId, isSubmit: true });
+      const acceptedSubmissions = await Submission.countDocuments({ problemId: job.problemId, isSubmit: true, verdict: 'AC' });
+      const acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedSubmissions / totalSubmissions) * 100) : 0;
+
+      await Problem.findByIdAndUpdate(job.problemId, { acceptanceRate });
+    }
+
+    // Recalculate and push leaderboard if contest submission
+    if (job.contestId && job.isSubmit) {
+      await recalculateLeaderboard(job.contestId);
+
+      const lbDocs = await Leaderboard.find({ contestId: job.contestId }).sort({
+        totalScore: -1,
+        penaltyTimeMinutes: 1,
+      });
+
+      this.emit('socketEvent', {
+        room: `contest:${job.contestId}`,
+        eventName: 'leaderboard:update',
+        data: lbDocs.map((r, idx) => {
+          const breakdownObj: Record<string, IProblemBreakdown> = {};
+          if (r.problemBreakdown instanceof Map) {
+            r.problemBreakdown.forEach((val, key) => { breakdownObj[key] = val; });
+          } else if (r.problemBreakdown && typeof r.problemBreakdown === 'object') {
+            Object.assign(breakdownObj, r.problemBreakdown);
+          }
+          return {
+            rank: idx + 1,
+            userId: r.userId,
+            username: r.username,
+            solvedCount: r.solvedCount,
+            totalScore: r.totalScore,
+            penaltyTimeMinutes: r.penaltyTimeMinutes,
+            problemBreakdown: breakdownObj,
+          };
+        }),
+      } as SocketEvent);
+    }
+
+    console.log(`[Judge] Finished job: ${job.submissionId} - Verdict: ${suiteResult.finalVerdict}`);
+
+    // Emit final socket event
     this.emit('socketEvent', {
       room,
       eventName: 'submission:done',
       data: {
         submissionId: job.submissionId,
-        verdict: finalVerdict,
-        passedTestCases: passed,
+        verdict: suiteResult.finalVerdict,
+        passedTestCases: suiteResult.passedTestCases,
         totalTestCases: job.testCases.length,
-        executionTimeMs: maxTime,
-        memoryKb: maxMem,
-        failedTestCase: failedTc,
+        executionTimeMs: suiteResult.maxExecutionTimeMs,
+        memoryKb: suiteResult.maxMemoryKb,
+        failedTestCase: suiteResult.failedTestCase,
       },
     } as SocketEvent);
-
-    console.log(`[Judge] Emitted final socketEvent to room: ${room}`);
   }
 }
 

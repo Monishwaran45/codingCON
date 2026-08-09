@@ -16,92 +16,83 @@ interface JudgeJob {
   testCases: ITestCase[]; timeLimitMs: number; isSubmit: boolean;
 }
 
-// Use the canonical normaliser from the judge module
-const normalise = normaliseOutput;
+import { executeTestSuite, TestCaseItem, TestCaseRunOutput } from './judge/runner';
 
 async function runJudge(job: JudgeJob): Promise<void> {
   const { publishSocketEvent } = await import('./queue/rabbitmq');
   const room = `submission:${job.submissionId}`;
-
-  let passed = 0;
-  let maxTime = 0;
-  let maxMem = 0;
-  let finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
-  let failedTc: null | {
-    id: string; passed: false; expectedOutput: string; actualOutput: string;
-    executionTimeMs: number; memoryKb: number; error?: string;
-  } = null;
-
   const resultsToStore: ISubmissionResult[] = [];
 
-  for (let i = 0; i < job.testCases.length; i++) {
-    const tc = job.testCases[i];
-    const result = await runCode(job.language, job.code, tc.input);
+  const testCaseItems: TestCaseItem[] = job.testCases.map((tc) => ({
+    id: tc.id,
+    input: tc.input,
+    expectedOutput: tc.expectedOutput,
+    isSample: tc.isSample,
+  }));
 
-    let verdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
-    if (result.timedOut || result.netTimeMs > job.timeLimitMs) verdict = 'TLE';
-    else if (result.exitCode !== 0) verdict = 'RE';
-    else if (normalise(result.stdout) !== normalise(tc.expectedOutput)) verdict = 'WA';
-
-    const tcPassed = verdict === 'AC';
-    if (tcPassed) passed++;
-    maxTime = Math.max(maxTime, result.executionTimeMs);
-    maxMem = Math.max(maxMem, result.memoryKb);
-
+  const onProgress = async (tcOutput: TestCaseRunOutput, passedCount: number, totalCount: number) => {
     resultsToStore.push({
       id: uuid(),
-      testCaseId: tc.id,
-      passed: tcPassed,
-      actualOutput: result.stdout,
-      executionTimeMs: result.executionTimeMs,
-      memoryKb: result.memoryKb,
-      error: result.stderr || null,
-      sortOrder: i,
+      testCaseId: tcOutput.id,
+      passed: tcOutput.passed,
+      actualOutput: tcOutput.actualOutput,
+      executionTimeMs: tcOutput.executionTimeMs,
+      memoryKb: tcOutput.memoryKb,
+      error: tcOutput.error || null,
+      sortOrder: resultsToStore.length,
     });
 
     await publishSocketEvent(room, 'submission:progress', {
       submissionId: job.submissionId,
-      passedTestCases: passed,
-      totalTestCases: job.testCases.length,
+      passedTestCases: passedCount,
+      totalTestCases: totalCount,
       isStreaming: true,
       testCaseResult: {
-        id: tc.id,
-        passed: tcPassed,
-        executionTimeMs: result.executionTimeMs,
-        memoryKb: result.memoryKb,
-        ...(tc.isSample ? { expectedOutput: tc.expectedOutput, actualOutput: result.stdout } : {}),
-        ...(result.stderr ? { error: result.stderr } : {}),
+        id: tcOutput.id,
+        passed: tcOutput.passed,
+        executionTimeMs: tcOutput.executionTimeMs,
+        memoryKb: tcOutput.memoryKb,
+        ...(tcOutput.isSample ? { expectedOutput: tcOutput.expectedOutput, actualOutput: tcOutput.actualOutput } : {}),
+        ...(tcOutput.error ? { error: tcOutput.error } : {}),
       },
     });
+  };
 
-    if (!tcPassed) {
-      finalVerdict = verdict;
-      if (!failedTc) {
-        failedTc = {
-          id: tc.id,
-          passed: false,
-          expectedOutput: tc.expectedOutput,
-          actualOutput: result.stdout,
-          executionTimeMs: result.executionTimeMs,
-          memoryKb: result.memoryKb,
-          ...(result.stderr ? { error: result.stderr } : {}),
-        };
-      }
-      break;
-    }
+  const suiteResult = await executeTestSuite(
+    job.language,
+    job.code,
+    testCaseItems,
+    job.timeLimitMs,
+    onProgress,
+    true,
+  );
+
+  if (resultsToStore.length === 0 && suiteResult.results.length > 0) {
+    suiteResult.results.forEach((r, idx) => {
+      resultsToStore.push({
+        id: uuid(),
+        testCaseId: r.id,
+        passed: r.passed,
+        actualOutput: r.actualOutput,
+        executionTimeMs: r.executionTimeMs,
+        memoryKb: r.memoryKb,
+        error: r.error || null,
+        sortOrder: idx,
+      });
+    });
   }
 
   await Submission.findByIdAndUpdate(job.submissionId, {
-    verdict: finalVerdict,
-    passedTestCases: passed,
-    executionTimeMs: maxTime,
-    memoryKb: maxMem,
+    verdict: suiteResult.finalVerdict,
+    passedTestCases: suiteResult.passedTestCases,
+    executionTimeMs: suiteResult.maxExecutionTimeMs,
+    memoryKb: suiteResult.maxMemoryKb,
     testCaseResults: resultsToStore,
   });
 
   await Problem.findByIdAndUpdate(job.problemId, { $inc: { totalSubmissions: 1 } });
 
-  if (finalVerdict === 'AC') {
+  if (suiteResult.finalVerdict === 'AC' && job.isSubmit) {
     const alreadySolved = await Submission.findOne({
       userId: job.userId,
       problemId: job.problemId,
@@ -155,12 +146,12 @@ async function runJudge(job: JudgeJob): Promise<void> {
 
   await publishSocketEvent(room, 'submission:done', {
     submissionId: job.submissionId,
-    verdict: finalVerdict,
-    passedTestCases: passed,
+    verdict: suiteResult.finalVerdict,
+    passedTestCases: suiteResult.passedTestCases,
     totalTestCases: job.testCases.length,
-    executionTimeMs: maxTime,
-    memoryKb: maxMem,
-    failedTestCase: failedTc,
+    executionTimeMs: suiteResult.maxExecutionTimeMs,
+    memoryKb: suiteResult.maxMemoryKb,
+    failedTestCase: suiteResult.failedTestCase,
     isStreaming: false,
   });
 }
