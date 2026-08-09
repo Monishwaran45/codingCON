@@ -36,13 +36,15 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || origin.endsWith('.vercel.app')) {
       callback(null, true);
     } else {
-      callback(new Error(`CORS policy restriction: origin ${origin} not allowed`));
+      callback(null, false);
     }
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 app.use(express.json({ limit: '1mb' }));

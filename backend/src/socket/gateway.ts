@@ -13,10 +13,10 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
   io = new SocketIOServer(httpServer, {
     cors: {
       origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || origin.endsWith('.vercel.app')) {
           callback(null, true);
         } else {
-          callback(new Error(`Socket.IO CORS policy restriction: origin ${origin} not allowed`));
+          callback(null, false);
         }
       },
       credentials: true,
