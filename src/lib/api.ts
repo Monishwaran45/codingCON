@@ -8,12 +8,23 @@ import { Problem, Contest, LeaderboardEntry, User, Submission } from '@/types';
 
 // ── Core fetcher ──────────────────────────────────────────────────────────────
 async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  let token: string | undefined;
+  try {
+    const { useAuthStore } = await import('@/store/useAuthStore');
+    token = useAuthStore.getState().user?.token;
+  } catch {
+    // ignore during SSR or before hydration
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers as Record<string, string>),
+  };
+
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
   });
   if (!res.ok) {

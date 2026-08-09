@@ -16,6 +16,7 @@ export interface User {
   solvedCount: number;
   ratingHistory: { date: string; rating: number }[];
   rating?: number;
+  token?: string;
 }
 
 export interface TestCase {

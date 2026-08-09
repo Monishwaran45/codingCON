@@ -50,7 +50,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     });
 
     const token = signToken({ id: user._id, email: user.email, role: user.role });
-    res.cookie('token', token, cookieOpts()).status(201).json(await toPublicUser(user));
+    res.cookie('token', token, cookieOpts()).status(201).json({ ...(await toPublicUser(user)), token });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'User registration failed' });
@@ -77,7 +77,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     const historyDocs = await RatingHistory.find({ userId: user._id }).sort({ recordedAt: 1 });
     const history = historyDocs.map((h) => ({ rating: h.rating, date: h.recordedAt.toISOString() }));
 
-    res.cookie('token', token, cookieOpts()).json({ ...(await toPublicUser(user)), ratingHistory: history });
+    res.cookie('token', token, cookieOpts()).json({ ...(await toPublicUser(user)), token, ratingHistory: history });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -86,7 +86,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
 // ── POST /api/auth/logout ────────────────────────────────────────────────────
 router.post('/logout', (_req: Request, res: Response): void => {
-  res.clearCookie('token').json({ ok: true });
+  res.clearCookie('token', cookieOpts()).json({ ok: true });
 });
 
 // ── GET /api/auth/me ─────────────────────────────────────────────────────────
@@ -95,10 +95,11 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
     const user = await User.findById(req.user!.id);
     if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
+    const token = signToken({ id: user._id, email: user.email, role: user.role });
     const historyDocs = await RatingHistory.find({ userId: user._id }).sort({ recordedAt: 1 });
     const history = historyDocs.map((h) => ({ rating: h.rating, date: h.recordedAt.toISOString() }));
 
-    res.json({ ...(await toPublicUser(user)), ratingHistory: history });
+    res.cookie('token', token, cookieOpts()).json({ ...(await toPublicUser(user)), token, ratingHistory: history });
   } catch (err) {
     console.error('Auth /me error:', err);
     res.status(500).json({ error: 'Failed to fetch user' });
@@ -107,10 +108,11 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function cookieOpts() {
+  const isProd = process.env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
+    secure: isProd,
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
     maxAge: 7 * 24 * 60 * 60 * 1000,
   };
 }

@@ -67,11 +67,16 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     set({ isStreaming: true, verdict: 'running', currentProblemId: problemId });
 
     const { useContestStore } = await import('@/store/useContestStore');
+    const { useAuthStore } = await import('@/store/useAuthStore');
     const effectiveContestId = contestId || useContestStore.getState().contest?.id;
+    const token = useAuthStore.getState().user?.token;
 
     const res = await fetch(`${API_BASE_URL}/submissions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       credentials: 'include',
       body: JSON.stringify({ problemId, language, code, isSubmit, contestId: effectiveContestId }),
     });
