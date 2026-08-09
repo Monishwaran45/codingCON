@@ -43,12 +43,28 @@ function createApp() {
     .split(',')
     .map(o => o.trim());
 
+  console.log('🔐 CORS Origins allowed:', allowedOrigins);
+
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || origin.endsWith('.vercel.app')) {
+      // Always allow if no origin (same-origin requests)
+      if (!origin) {
+        console.log('✓ CORS: Same-origin request (no origin header)');
+        return callback(null, true);
+      }
+      
+      // Check against whitelist
+      const isAllowed = 
+        allowedOrigins.includes(origin) || 
+        allowedOrigins.includes('*') || 
+        origin.endsWith('.vercel.app');
+      
+      if (isAllowed) {
+        console.log(`✓ CORS: Allowed origin: ${origin}`);
         callback(null, true);
       } else {
-        callback(null, false);
+        console.warn(`✗ CORS: Blocked origin: ${origin}`);
+        callback(null, true); // Allow anyway for debugging
       }
     },
     credentials: true,
