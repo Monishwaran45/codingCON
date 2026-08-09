@@ -17,12 +17,6 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   isFrozen = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [scrollTop, setScrollTop] = useState(0);
-
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const ROW_HEIGHT = 48; // Fixed height per table row in pixels
-  const VIEWPORT_HEIGHT = 500; // Fixed scroll viewport height
-  const OVERSCAN = 5;
 
   const userIndex = entries.findIndex((e) => e.userId === currentUserId);
   const currentUserRow = userIndex !== -1 ? entries[userIndex] : null;
@@ -30,80 +24,56 @@ export const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
   const deltaPointsToPass = (currentUserRow && nextRankRow) ? (nextRankRow.totalScore - currentUserRow.totalScore) : 0;
 
   const filteredEntries = entries.filter((e) =>
-    e.username.toLowerCase().includes(searchQuery.toLowerCase())
+    e.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(e.rank).includes(searchQuery)
   );
 
-  // Virtual Windowing Math
-  const totalRows = filteredEntries.length;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(totalRows, Math.ceil((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + OVERSCAN);
-  const visibleEntries = filteredEntries.slice(startIndex, endIndex);
-
-  const paddingTop = startIndex * ROW_HEIGHT;
-  const paddingBottom = Math.max(0, (totalRows - endIndex) * ROW_HEIGHT);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
-  };
-
   return (
-    <div className="space-y-4 pb-20 font-jetbrains">
+    <div className="space-y-4 pb-20 font-inter">
       {/* Freeze Banner if frozen */}
       {isFrozen && (
-        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-center text-xs text-amber-300 font-bold">
-          ❄️ LEADERBOARD FROZEN UNTIL CONTEST ENDS — Scores are hidden to build suspense!
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-center text-xs text-amber-600 dark:text-amber-400 font-bold">
+          ❄️ LEADERBOARD FROZEN UNTIL CONTEST ENDS — Scores are temporarily hidden.
         </div>
       )}
 
-      {/* Toolbar Search */}
-      <div className="flex items-center justify-between gap-4">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Filter by participant handle..."
-          className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-950 px-3.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-white focus:outline-none"
-        />
-        <div className="text-xs text-zinc-400">
-          Showing <strong className="text-white">{filteredEntries.length}</strong> / {entries.length} competitors (60fps virtualized)
+      {/* Toolbar Search & Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+        <div className="relative flex-1 max-w-sm">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search competitor by username or rank..."
+            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none transition-colors"
+          />
+        </div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+          Showing <strong className="text-zinc-900 dark:text-white font-mono">{filteredEntries.length}</strong> of{' '}
+          <strong className="text-zinc-900 dark:text-white font-mono">{entries.length}</strong> competitors
         </div>
       </div>
 
-      {/* Virtualized Table Container */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        style={{ height: `${VIEWPORT_HEIGHT}px` }}
-        className="overflow-y-auto rounded-xl border border-zinc-900 bg-zinc-950/60"
-      >
+      {/* Table Container */}
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-xs">
         <table className="w-full text-left text-xs">
-          <thead className="sticky top-0 z-20 border-b border-zinc-900 bg-black text-zinc-400 uppercase text-[0.68rem] tracking-wider">
+          <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
             <tr>
-              <th className="px-4 py-3 text-center">Rank</th>
-              <th className="px-4 py-3">Participant</th>
-              <th className="px-4 py-3 text-center">Solved</th>
-              <th className="px-4 py-3 text-center">Score</th>
-              <th className="px-4 py-3 text-center">Penalty</th>
+              <th className="px-4 py-3.5 text-center w-16">Rank</th>
+              <th className="px-4 py-3.5">Competitor</th>
+              <th className="px-4 py-3.5 text-center">Problems Solved</th>
+              <th className="px-4 py-3.5 text-center">Total Score</th>
+              <th className="px-4 py-3.5 text-center">Penalty Time</th>
             </tr>
           </thead>
-          <tbody>
-            {paddingTop > 0 && (
-              <tr>
-                <td colSpan={5} style={{ height: `${paddingTop}px` }} />
-              </tr>
-            )}
-            {visibleEntries.map((entry) => (
+          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+            {filteredEntries.map((entry) => (
               <LeaderboardRow
                 key={entry.userId}
                 entry={entry}
                 isCurrentUser={entry.userId === currentUserId}
               />
             ))}
-            {paddingBottom > 0 && (
-              <tr>
-                <td colSpan={5} style={{ height: `${paddingBottom}px` }} />
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
