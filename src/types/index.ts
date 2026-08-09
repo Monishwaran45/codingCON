@@ -101,3 +101,16 @@ export interface Contest {
   status?: 'live' | 'upcoming' | 'ended';
   announcements: { id: string; timestamp: string; message: string }[];
 }
+
+export interface Participant {
+  rank: number;
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  solvedCount: number;
+  totalScore: number;
+  penaltyTimeMinutes: number;
+  lastUpdated: string;
+  problemBreakdown: Record<string, { score: number; attempted: boolean; solvedTime?: string }>;
+}

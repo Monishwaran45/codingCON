@@ -166,6 +166,24 @@ export const api = {
       body: JSON.stringify({ frozen }),
     }),
 
+  stopContest: (contestId: string) =>
+    fetcher<Contest>(`/contest/${contestId}/stop`, {
+      method: 'POST',
+    }),
+
+  extendContest: (contestId: string) =>
+    fetcher<Contest>(`/contest/${contestId}/extend`, {
+      method: 'POST',
+    }),
+
+  deleteContest: (contestId: string) =>
+    fetcher<{ ok: boolean }>(`/contest/${contestId}`, {
+      method: 'DELETE',
+    }),
+
+  getContestParticipants: (contestId: string) =>
+    fetcher<import('@/types').Participant[]>(`/contest/${contestId}/participants`),
+
   // ── Leaderboard ────────────────────────────────────────────────────────────
   getLeaderboard: (contestId: string) =>
     fetcher<LeaderboardEntry[]>(`/leaderboard/${contestId}`),

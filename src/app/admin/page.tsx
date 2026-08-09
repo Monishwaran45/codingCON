@@ -3,14 +3,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Problem, Contest } from '@/types';
+import { Problem, Contest, Participant } from '@/types';
 import { AdminGuard } from '@/components/admin/AdminGuard';
 import { SkeletonLoader } from '@/components/ui/SkeletonLoader';
 import { CreateContestModal } from '@/components/admin/CreateContestModal';
 import { ProblemImportModal } from '@/components/admin/ProblemImportModal';
 import { ContestTimer } from '@/components/contest/ContestTimer';
 
-type Tab = 'problems' | 'contests' | 'announcements';
+type Tab = 'problems' | 'contests' | 'participants' | 'announcements';
 
 const DIFF_STYLES = {
   easy: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -26,6 +26,12 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDiff, setSelectedDiff] = useState<string>('all');
+
+  // Participants Tab State
+  const [selectedContestId, setSelectedContestId] = useState<string>('');
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [isParticipantsLoading, setIsParticipantsLoading] = useState(false);
+  const [participantSearch, setParticipantSearch] = useState('');
 
   // Modals
   const [isContestModalOpen, setIsContestModalOpen] = useState(false);
@@ -47,8 +53,25 @@ export default function AdminDashboardPage() {
       setProblems(probs);
       setContests(contList);
       setActiveContest(activeCont);
+      if (contList.length > 0 && !selectedContestId) {
+        setSelectedContestId(activeCont?.id || contList[0].id);
+      }
     } finally {
       setIsLoading(false);
+    }
+  }, [selectedContestId]);
+
+  const loadParticipants = useCallback(async (contestId: string) => {
+    if (!contestId) return;
+    setIsParticipantsLoading(true);
+    try {
+      const data = await api.getContestParticipants(contestId);
+      setParticipants(data);
+    } catch (err) {
+      console.error('Failed to load participants:', err);
+      setParticipants([]);
+    } finally {
+      setIsParticipantsLoading(false);
     }
   }, []);
 
@@ -56,10 +79,69 @@ export default function AdminDashboardPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (selectedContestId && tab === 'participants') {
+      loadParticipants(selectedContestId);
+    }
+  }, [selectedContestId, tab, loadParticipants]);
+
   const handleDelete = async (id: string, title: string) => {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
     await api.deleteProblem(id);
     setProblems((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleStopContest = async (contestId: string, title: string) => {
+    if (!confirm(`🛑 Stop and conclude contest "${title}" now? The active timer will end immediately.`)) return;
+    await api.stopContest(contestId);
+    await loadData();
+    if (selectedContestId === contestId) {
+      loadParticipants(contestId);
+    }
+  };
+
+  const handleExtendContest = async (contestId: string, title: string) => {
+    await api.extendContest(contestId);
+    await loadData();
+  };
+
+  const handleDeleteContest = async (contestId: string, title: string) => {
+    if (!confirm(`⚠️ Permanently delete contest "${title}" and all its participant data? This action cannot be undone.`)) return;
+    await api.deleteContest(contestId);
+    if (selectedContestId === contestId) {
+      setSelectedContestId('');
+      setParticipants([]);
+    }
+    await loadData();
+  };
+
+  const handleViewParticipants = (contestId: string) => {
+    setSelectedContestId(contestId);
+    setTab('participants');
+    loadParticipants(contestId);
+  };
+
+  const handleExportCSV = () => {
+    if (participants.length === 0) return;
+    const currentContest = contests.find(c => c.id === selectedContestId);
+    const headers = ['Rank', 'Username', 'Email', 'Solved Count', 'Total Score', 'Penalty Minutes', 'Last Active'];
+    const rows = participants.map(p => [
+      p.rank,
+      `"${p.username}"`,
+      `"${p.email}"`,
+      p.solvedCount,
+      p.totalScore,
+      p.penaltyTimeMinutes,
+      `"${p.lastUpdated}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `participants_${currentContest?.title?.replace(/\s+/g, '_') || selectedContestId}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleToggleFreeze = async (contestId: string, currentFrozen: boolean) => {
@@ -85,6 +167,15 @@ export default function AdminDashboardPage() {
       p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchDiff = selectedDiff === 'all' || p.difficulty === selectedDiff;
     return matchSearch && matchDiff;
+  });
+
+  const filteredParticipants = participants.filter((p) => {
+    const query = participantSearch.toLowerCase();
+    return (
+      p.username.toLowerCase().includes(query) ||
+      p.email.toLowerCase().includes(query) ||
+      String(p.rank).includes(query)
+    );
   });
 
   const stats = [
@@ -151,21 +242,28 @@ export default function AdminDashboardPage() {
 
         {/* Tabs */}
         <div className="border-b border-zinc-200 dark:border-zinc-800">
-          <nav className="flex gap-1 -mb-px">
+          <nav className="flex gap-1 -mb-px overflow-x-auto">
             {([
-              { id: 'problems', label: `Problem Archive (${problems.length})` },
-              { id: 'contests', label: `Contest Management (${contests.length})` },
-              { id: 'announcements', label: 'Live Announcements' },
-            ] as { id: Tab; label: string }[]).map(({ id, label }) => (
+              { id: 'problems', label: `Problem Archive (${problems.length})`, icon: '📁' },
+              { id: 'contests', label: `Contest Management (${contests.length})`, icon: '⏱' },
+              { id: 'participants', label: `Participants (${participants.length})`, icon: '👥' },
+              { id: 'announcements', label: 'Live Announcements', icon: '📢' },
+            ] as { id: Tab; label: string; icon: string }[]).map(({ id, label, icon }) => (
               <button
                 key={id}
-                onClick={() => setTab(id)}
-                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors ${
+                onClick={() => {
+                  setTab(id);
+                  if (id === 'participants' && selectedContestId) {
+                    loadParticipants(selectedContestId);
+                  }
+                }}
+                className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                   tab === id
                     ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
                     : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
                 }`}
               >
+                <span>{icon}</span>
                 {label}
               </button>
             ))}
@@ -314,32 +412,72 @@ export default function AdminDashboardPage() {
             ) : contests.length > 0 ? (
               <div className="space-y-4">
                 {contests.map((c) => {
-                  const isCurrentActive = activeContest?.id === c.id;
+                  const now = new Date();
+                  const isEnded = new Date(c.endTime) < now;
+                  const isUpcoming = new Date(c.startTime) > now;
+                  const isLive = !isEnded && !isUpcoming;
+
                   return (
                     <div
                       key={c.id}
-                      className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs"
+                      className={`rounded-xl border bg-white dark:bg-zinc-950 overflow-hidden shadow-xs transition-all ${
+                        isLive
+                          ? 'border-blue-500/40 dark:border-blue-500/30'
+                          : 'border-zinc-200 dark:border-zinc-800'
+                      }`}
                     >
-                      <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-900 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            {isCurrentActive ? (
-                              <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase inline-flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                Live Contest
+                            {isLive ? (
+                              <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 uppercase inline-flex items-center gap-1.5">
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                LIVE CONTEST
+                              </span>
+                            ) : isUpcoming ? (
+                              <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 uppercase">
+                                ⏳ UPCOMING
                               </span>
                             ) : (
                               <span className="text-[0.62rem] font-bold px-2 py-0.5 rounded bg-zinc-500/10 border border-zinc-500/20 text-zinc-500 uppercase">
-                                Scheduled / Ended
+                                🏁 CONCLUDED
                               </span>
                             )}
                             <span className="text-xs font-mono text-zinc-400">ID: {c.id}</span>
                           </div>
-                          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{c.title}</h3>
+                          <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">{c.title}</h3>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <ContestTimer endTime={c.endTime} durationMinutes={c.durationMinutes} />
+                        {/* Action Buttons & Timer */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          {!isEnded && (
+                            <ContestTimer endTime={c.endTime} durationMinutes={c.durationMinutes} />
+                          )}
+
+                          {/* Stop Contest Button */}
+                          {isLive && (
+                            <button
+                              onClick={() => handleStopContest(c.id, c.title)}
+                              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors inline-flex items-center gap-1"
+                              title="Immediately end this contest"
+                            >
+                              🛑 Stop Contest
+                            </button>
+                          )}
+
+                          {/* Extend Timer Button */}
+                          <button
+                            onClick={() => handleExtendContest(c.id, c.title)}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                            title="Extend contest duration by 60 minutes"
+                          >
+                            ➕ {isEnded ? 'Restart (+105m)' : 'Extend (+60m)'}
+                          </button>
+
+                          {/* Freeze Leaderboard Button */}
                           <button
                             onClick={() => handleToggleFreeze(c.id, !!c.isLeaderboardFrozen)}
                             className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
@@ -348,7 +486,24 @@ export default function AdminDashboardPage() {
                                 : 'bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
                             }`}
                           >
-                            {c.isLeaderboardFrozen ? '❄ Leaderboard Frozen' : 'Freeze Leaderboard'}
+                            {c.isLeaderboardFrozen ? '❄ Frozen' : 'Freeze'}
+                          </button>
+
+                          {/* View Participants Button */}
+                          <button
+                            onClick={() => handleViewParticipants(c.id)}
+                            className="text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors inline-flex items-center gap-1"
+                          >
+                            👥 Participants ({c.participantCount})
+                          </button>
+
+                          {/* Delete Contest Button */}
+                          <button
+                            onClick={() => handleDeleteContest(c.id, c.title)}
+                            className="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-400 hover:text-red-600 hover:border-red-300 dark:hover:border-red-800 transition-colors"
+                            title="Delete contest and all submissions"
+                          >
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>
@@ -370,19 +525,24 @@ export default function AdminDashboardPage() {
                           ))}
                         </div>
 
-                        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex items-center gap-4 text-xs font-semibold">
-                          <Link
-                            href={`/contest/${c.id}`}
-                            className="text-blue-600 dark:text-blue-400 hover:underline"
-                          >
-                            View Live Student Platform →
-                          </Link>
-                          <Link
-                            href={`/contest/${c.id}/leaderboard`}
-                            className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                          >
-                            View Leaderboard ({c.participantCount} users)
-                          </Link>
+                        <div className="pt-3 border-t border-zinc-100 dark:border-zinc-900 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold">
+                          <div className="flex items-center gap-4">
+                            <Link
+                              href={`/contest/${c.id}`}
+                              className="text-blue-600 dark:text-blue-400 hover:underline"
+                            >
+                              View Live Student Platform →
+                            </Link>
+                            <Link
+                              href={`/contest/${c.id}/leaderboard`}
+                              className="text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                            >
+                              Live Standings Leaderboard
+                            </Link>
+                          </div>
+                          <span className="text-[0.7rem] text-zinc-400 font-mono">
+                            {new Date(c.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {new Date(c.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({new Date(c.startTime).toLocaleDateString([], { day: 'numeric', month: 'short' })})
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -399,6 +559,212 @@ export default function AdminDashboardPage() {
                 >
                   + Schedule First Contest
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Participants Tab ──────────────────────────────────────────────── */}
+        {tab === 'participants' && (
+          <div className="space-y-6">
+            {/* Header & Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                  Student Participants & Assessment Roster
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Real-time list of students registered, actively participating, or submitted for this contest.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {/* Contest Selector Dropdown */}
+                {contests.length > 0 && (
+                  <select
+                    value={selectedContestId}
+                    onChange={(e) => {
+                      setSelectedContestId(e.target.value);
+                      loadParticipants(e.target.value);
+                    }}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200 focus:border-blue-500 focus:outline-none"
+                  >
+                    {contests.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title} ({c.id})
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Export CSV Button */}
+                <button
+                  onClick={handleExportCSV}
+                  disabled={participants.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold px-3.5 py-2 transition-colors disabled:opacity-50 shadow-xs"
+                >
+                  📥 Export CSV
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Stats Banner for Selected Contest */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40 p-4">
+                <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                  Enrolled Students
+                </span>
+                <span className="text-2xl font-extrabold font-mono text-blue-600 dark:text-blue-400">
+                  {participants.length}
+                </span>
+              </div>
+              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40 p-4">
+                <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                  Solved ≥ 1 Challenge
+                </span>
+                <span className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
+                  {participants.filter(p => p.solvedCount > 0).length}
+                </span>
+              </div>
+              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40 p-4">
+                <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                  Top Score Achieved
+                </span>
+                <span className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                  {participants.length > 0 ? Math.max(...participants.map(p => p.totalScore)) : 0} pts
+                </span>
+              </div>
+              <div className="rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/40 p-4">
+                <span className="text-[0.65rem] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
+                  Average Score
+                </span>
+                <span className="text-2xl font-extrabold font-mono text-purple-600 dark:text-purple-400">
+                  {participants.length > 0
+                    ? Math.round(participants.reduce((a, b) => a + b.totalScore, 0) / participants.length)
+                    : 0} pts
+                </span>
+              </div>
+            </div>
+
+            {/* Search filter */}
+            <div className="bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200 dark:border-zinc-800 p-3">
+              <input
+                type="text"
+                value={participantSearch}
+                onChange={(e) => setParticipantSearch(e.target.value)}
+                placeholder="Search participant by student name, email, or rank..."
+                className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3.5 py-2 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none transition-colors"
+              />
+            </div>
+
+            {/* Participants Table */}
+            {isParticipantsLoading ? (
+              <SkeletonLoader count={5} className="h-14 w-full rounded-xl" />
+            ) : filteredParticipants.length > 0 ? (
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden shadow-xs">
+                <table className="w-full text-left text-xs font-inter">
+                  <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 uppercase text-[0.65rem] tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4 text-center w-16">Rank</th>
+                      <th className="py-3.5 px-4">Student Participant</th>
+                      <th className="py-3.5 px-4 text-center">Problems Solved</th>
+                      <th className="py-3.5 px-4 text-center">Score</th>
+                      <th className="py-3.5 px-4 text-center">Penalty Time</th>
+                      <th className="py-3.5 px-4">Problem Breakdown</th>
+                      <th className="py-3.5 px-4 text-right">Last Activity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                    {filteredParticipants.map((p) => {
+                      const breakdownEntries = Object.entries(p.problemBreakdown || {});
+                      return (
+                        <tr key={p.userId} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40 transition-colors">
+                          <td className="py-3.5 px-4 text-center font-mono font-bold">
+                            {p.rank === 1 ? (
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 text-xs">
+                                🥇 1
+                              </span>
+                            ) : p.rank === 2 ? (
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs">
+                                🥈 2
+                              </span>
+                            ) : p.rank === 3 ? (
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-200/50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-500 text-xs">
+                                🥉 3
+                              </span>
+                            ) : (
+                              <span className="text-zinc-500 dark:text-zinc-400">#{p.rank}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                                {p.username.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                                  {p.username}
+                                  <span className="text-[0.6rem] font-normal px-1.5 py-0.2 rounded bg-zinc-100 dark:bg-zinc-900 text-zinc-500 border border-zinc-200/60 dark:border-zinc-800">
+                                    {p.role}
+                                  </span>
+                                </div>
+                                <div className="text-[0.7rem] text-zinc-400 font-mono">{p.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs">
+                              {p.solvedCount}
+                            </span>
+                            <span className="text-zinc-400 text-[0.7rem]"> solved</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                            {p.totalScore}
+                            <span className="text-[0.65rem] text-zinc-400 font-normal ml-0.5">pts</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-mono text-zinc-500 text-xs">
+                            {p.penaltyTimeMinutes}m
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {breakdownEntries.length > 0 ? (
+                                breakdownEntries.map(([probId, data]) => (
+                                  <span
+                                    key={probId}
+                                    className={`text-[0.62rem] font-mono px-2 py-0.5 rounded border ${
+                                      data.score > 0
+                                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-bold'
+                                        : data.attempted
+                                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                                        : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-400 border-zinc-200 dark:border-zinc-800'
+                                    }`}
+                                  >
+                                    {data.score > 0 ? `+${data.score}` : (data.attempted ? 'Att' : '—')}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-zinc-400 text-[0.7rem] italic">No submissions yet</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-right text-[0.7rem] text-zinc-400 font-mono">
+                            {new Date(p.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
+                <div className="text-3xl mb-3">👥</div>
+                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                  No participants registered yet
+                </p>
+                <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                  When students log in and enter the assessment arena, their names, scores, and real-time solved challenge breakdown will appear here.
+                </p>
               </div>
             )}
           </div>

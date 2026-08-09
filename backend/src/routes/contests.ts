@@ -297,6 +297,84 @@ router.post('/:id/announcements', requireAuth, requirePermission('manage_contest
   }
 });
 
+// ── POST /api/contest/:id/stop ────────────────────────────────────────────────
+router.post('/:id/stop', requireAuth, requirePermission('manage_contests'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const contest = await Contest.findById(req.params.id);
+    if (!contest) { res.status(404).json({ error: 'Contest not found' }); return; }
+
+    contest.endTime = new Date();
+    await contest.save();
+    activeContestCache = null; // bust cache
+
+    const hydrated = await hydrateContest(contest);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getIO } = require('../socket/gateway') as typeof import('../socket/gateway');
+    getIO()?.to(`contest:${req.params.id}`).emit('contest:ended', hydrated);
+
+    res.json(hydrated);
+  } catch (err) {
+    console.error('Stop contest error:', err);
+    res.status(500).json({ error: 'Failed to stop contest' });
+  }
+});
+
+// ── DELETE /api/contest/:id ───────────────────────────────────────────────────
+router.delete('/:id', requireAuth, requirePermission('manage_contests'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const contest = await Contest.findById(req.params.id);
+    if (!contest) { res.status(404).json({ error: 'Contest not found' }); return; }
+
+    await Promise.all([
+      Contest.findByIdAndDelete(req.params.id),
+      Announcement.deleteMany({ contestId: req.params.id }),
+      Leaderboard.deleteMany({ contestId: req.params.id }),
+    ]);
+
+    activeContestCache = null; // bust cache
+    res.json({ ok: true, message: 'Contest and associated data deleted successfully' });
+  } catch (err) {
+    console.error('Delete contest error:', err);
+    res.status(500).json({ error: 'Failed to delete contest' });
+  }
+});
+
+// ── GET /api/contest/:id/participants ─────────────────────────────────────────
+router.get('/:id/participants', requireAuth, requirePermission('manage_contests', 'manage_problems'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const leaderboardDocs = await Leaderboard.find({ contestId: req.params.id })
+      .sort({ totalScore: -1, penaltyTimeMinutes: 1 })
+      .lean();
+
+    const { User } = await import('../db/models/User');
+    const userIds = leaderboardDocs.map((e) => e.userId);
+    const users = await User.find({ _id: { $in: userIds } }).select('_id username email role').lean();
+    const userMap = new Map(users.map((u) => [u._id, u]));
+
+    const participants = leaderboardDocs.map((entry, index) => {
+      const user = userMap.get(entry.userId);
+      return {
+        rank: index + 1,
+        userId: entry.userId,
+        username: user?.username || entry.username || 'Student',
+        email: user?.email || '—',
+        role: user?.role || 'student',
+        solvedCount: entry.solvedCount || 0,
+        totalScore: entry.totalScore || 0,
+        penaltyTimeMinutes: entry.penaltyTimeMinutes || 0,
+        lastUpdated: entry.lastUpdated ? new Date(entry.lastUpdated).toISOString() : new Date().toISOString(),
+        problemBreakdown: entry.problemBreakdown || {},
+      };
+    });
+
+    res.json(participants);
+  } catch (err) {
+    console.error('Fetch participants error:', err);
+    res.status(500).json({ error: 'Failed to fetch contest participants' });
+  }
+});
+
 // ── PATCH /api/contest/:id/freeze ─────────────────────────────────────────────
 router.patch('/:id/freeze', requireAuth, requirePermission('manage_contests'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
