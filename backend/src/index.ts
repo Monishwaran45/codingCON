@@ -46,27 +46,7 @@ function createApp() {
   console.log('🔐 CORS Origins allowed:', allowedOrigins);
 
   app.use(cors({
-    origin: (origin, callback) => {
-      // Always allow if no origin (same-origin requests)
-      if (!origin) {
-        console.log('✓ CORS: Same-origin request (no origin header)');
-        return callback(null, true);
-      }
-      
-      // Check against whitelist
-      const isAllowed = 
-        allowedOrigins.includes(origin) || 
-        allowedOrigins.includes('*') || 
-        origin.endsWith('.vercel.app');
-      
-      if (isAllowed) {
-        console.log(`✓ CORS: Allowed origin: ${origin}`);
-        callback(null, true);
-      } else {
-        console.warn(`✗ CORS: Blocked origin: ${origin}`);
-        callback(null, true); // Allow anyway for debugging
-      }
-    },
+    origin: true, // Allow all origins for production (Render + Vercel)
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
