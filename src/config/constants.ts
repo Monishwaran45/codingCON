@@ -6,11 +6,13 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 
 // WebSocket URL.
-// • Empty string → socket.io-client connects to the same origin (works through
-//   the Next.js rewrite proxy).
-// • Override with NEXT_PUBLIC_WS_BASE_URL for a separately hosted backend.
+// • Set NEXT_PUBLIC_WS_BASE_URL for a separately hosted backend (e.g. Render).
+// • Defaults to NEXT_PUBLIC_API_BASE_URL origin or http://localhost:4000.
 export const WS_BASE_URL =
-  process.env.NEXT_PUBLIC_WS_BASE_URL ?? 'http://localhost:4000';
+  process.env.NEXT_PUBLIC_WS_BASE_URL ??
+  (process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_API_BASE_URL.startsWith('http')
+    ? new URL(process.env.NEXT_PUBLIC_API_BASE_URL).origin
+    : 'http://localhost:4000');
 
 // Fixed UX convention for problem difficulty badges
 export const DIFFICULTY_COLORS = {

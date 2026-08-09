@@ -10,11 +10,20 @@
  */
 export function normaliseOutput(s: string | null | undefined): string {
   if (!s) return '';
-  return s
+  const cleaned = s
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .split('\n')
     .map((l) => l.trim())
     .join('\n')
     .trim();
+
+  // If the normalized output is a single boolean token (e.g. "True"/"true" or "False"/"false"),
+  // normalize to lowercase so Python (True), Java (true), C++, and JS match consistently.
+  const lower = cleaned.toLowerCase();
+  if (lower === 'true' || lower === 'false' || lower === 'yes' || lower === 'no') {
+    return lower;
+  }
+
+  return cleaned;
 }

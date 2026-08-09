@@ -6,11 +6,19 @@ import { Submission } from '../db/models/Submission';
 let io: SocketIOServer | null = null;
 
 export function initSocket(httpServer: HTTPServer): SocketIOServer {
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim());
 
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin:      corsOrigin,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Socket.IO CORS policy restriction: origin ${origin} not allowed`));
+        }
+      },
       credentials: true,
     },
     transports: ['websocket', 'polling'],

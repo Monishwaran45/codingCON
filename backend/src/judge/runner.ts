@@ -86,8 +86,8 @@ const LANG_CONFIG: Record<string, {
   java: {
     ext:      'java',
     image:    'eclipse-temurin:21-jdk-alpine',
-    buildCmd: (src) => ['javac', '-encoding', 'UTF-8', src],
-    runCmd:   (src) => ['java', '-cp', path.dirname(src), path.basename(src, '.java')],
+    buildCmd: (src) => ['javac', '-encoding', 'UTF-8', '-d', '/work', src],
+    runCmd:   (src) => ['java', '-cp', '/work', src.split('/').pop()?.replace('.java', '') || 'Solution'],
   },
 };
 
@@ -141,23 +141,26 @@ async function runInDocker(
   const TIMEOUT_MS = getTimeoutMs();
   const MEMORY_MB  = getMemoryMb();
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
   const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
   const srcName = language === 'java' ? `${javaClassName}.${cfg.ext}` : `solution.${cfg.ext}`;
-  const srcFile = path.join(dir, srcName);
-
-  writeSourceFile(srcFile, code);
-  fs.writeFileSync(path.join(dir, 'stdin.txt'), Buffer.from(stdin ?? '', 'utf8'));
-
-  // Source and stdin are supplied read-only. Compilation happens in a separate
-  // tmpfs work directory, so compiled languages remain supported with a fully
-  // read-only container root filesystem.
   const workSrc = `/work/${srcName}`;
-  const compileStep = cfg.buildCmd
-    ? `${cfg.buildCmd(workSrc, '/work/solution').join(' ')} && `
+
+  const codeB64 = Buffer.from(code ?? '', 'utf8').toString('base64');
+  const stdinB64 = Buffer.from(stdin ?? '', 'utf8').toString('base64');
+
+  const prepareJava = language === 'java'
+    ? `sed -i 's/^[[:space:]]*package[[:space:]].*;/\\/\\/ package disabled;/g' ${workSrc} && `
     : '';
+
+  const compileCmdStr = cfg.buildCmd ? cfg.buildCmd(workSrc, '/work/solution').join(' ') : '';
+  const fullCompileScript = compileCmdStr
+    ? `${compileCmdStr} 2> /work/compile_err.txt || { cat /work/compile_err.txt >&2; exit 1; }; `
+    : '';
+
   const runStep = cfg.runCmd(workSrc, '/work/solution').join(' ');
-  const shellCmd = `cp /input/${srcName} ${workSrc} && ${compileStep}${runStep} < /input/stdin.txt`;
+  const getMsScript = `get_ms() { if [ -f /proc/uptime ]; then read -r _u _ < /proc/uptime; _s=\${_u%.*}; _d=\${_u#*.}; _d=\$(echo "\$_d" | cut -c1-2); _d=\$(printf "%-2s" "\$_d" | tr ' ' '0'); echo \$(( _s * 1000 + _d * 10 )); else echo \$(( \$(date +%s) * 1000 )); fi; };`;
+
+  const shellCmd = `printf '%s' '${codeB64}' | base64 -d > ${workSrc} && printf '%s' '${stdinB64}' | base64 -d > /work/stdin.txt && ${prepareJava}${fullCompileScript}${getMsScript} T1=\$(get_ms); ${runStep} < /work/stdin.txt > /work/stdout.txt 2> /work/stderr.txt; EXIT_CODE=\$?; T2=\$(get_ms); ELAPSED=\$(( T2 - T1 )); if [ "\$ELAPSED" -lt 0 ] 2>/dev/null; then ELAPSED=0; fi; cat /work/stdout.txt; cat /work/stderr.txt >&2; printf "\n___EXEC_META___:%d:%d\n" "\$EXIT_CODE" "\$ELAPSED"; exit \$EXIT_CODE`;
 
   // Production Container Hardening Flags
   const args = [
@@ -175,40 +178,59 @@ async function runInDocker(
     '--tmpfs', '/tmp:rw,exec,size=64m,mode=1777',          // Isolated in-memory temp dir
     '--tmpfs', '/work:rw,exec,size=128m,mode=1777',        // Writable compiler/runtime work area
     '--user', '65534:65534',                                // Unprivileged user inside the sandbox
-    '-v', `${dir}:/input:ro`,                              // Source files mounted READ-ONLY
     cfg.image,
     'sh', '-c', shellCmd,
   ];
 
   const start = Date.now();
-  const DOCKER_OVERHEAD = 500;
+  const DOCKER_OVERHEAD = 2500;
 
   try {
     const { stdout, stderr } = await execFileAsync('docker', args, {
-      timeout: TIMEOUT_MS + 2000,
+      timeout: TIMEOUT_MS + 5000,
       maxBuffer: MAX_OUTPUT_BYTES,
     });
-    cleanup(dir);
+
+    const metaMatch = stdout.match(/\n?___EXEC_META___:(-?\d+):(\d+)\n?$/);
+    let actualStdout = stdout;
+    let parsedExitCode = 0;
+    let measuredTimeMs = 0;
+
+    if (metaMatch) {
+      actualStdout = stdout.replace(/\n?___EXEC_META___:(-?\d+):(\d+)\n?$/, '');
+      parsedExitCode = parseInt(metaMatch[1], 10);
+      measuredTimeMs = parseInt(metaMatch[2], 10);
+    }
+
     const wall = Date.now() - start;
-    const net  = Math.max(0, wall - DOCKER_OVERHEAD);
+    const finalNetTime = measuredTimeMs > 0 ? measuredTimeMs : Math.max(0, wall - DOCKER_OVERHEAD);
+
     return {
-      stdout:          stdout.trimEnd(),
+      stdout:          actualStdout.trimEnd(),
       stderr:          stderr.trimEnd(),
-      executionTimeMs: net,
-      netTimeMs:       net,
+      executionTimeMs: finalNetTime,
+      netTimeMs:       finalNetTime,
       memoryKb:        0,
-      exitCode:        0,
+      exitCode:        parsedExitCode,
       timedOut:        false,
     };
   } catch (err: unknown) {
-    cleanup(dir);
     const e = err as { killed?: boolean; stderr?: string; stdout?: string; code?: number };
     const wall = Date.now() - start;
     const net  = Math.max(0, wall - DOCKER_OVERHEAD);
     const isTimeout = e.killed ?? false;
+
+    let errOutput = (e.stderr ?? '').trimEnd();
+    if (!errOutput && (e.stdout ?? '')) {
+      errOutput = (e.stdout ?? '').trimEnd();
+    }
+    if (!errOutput) {
+      errOutput = isTimeout ? 'Time Limit Exceeded (Container Timeout)' : 'Runtime Error';
+    }
+
     return {
-      stdout:          (e.stdout ?? '').trimEnd(),
-      stderr:          (e.stderr ?? (isTimeout ? 'Time Limit Exceeded (Container Timeout)' : 'Runtime Error')).trimEnd(),
+      stdout:          (e.stdout ?? '').replace(/\n?___EXEC_META___:(-?\d+):(\d+)\n?$/, '').trimEnd(),
+      stderr:          errOutput,
       executionTimeMs: net,
       netTimeMs:       net,
       memoryKb:        0,

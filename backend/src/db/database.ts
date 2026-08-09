@@ -5,8 +5,6 @@ import { v4 as uuid } from 'uuid';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/codingcon';
-
 export async function connectDB(): Promise<typeof mongoose> {
   if (mongoose.connection.readyState >= 1) {
     return mongoose;
@@ -14,30 +12,58 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   let conn: typeof mongoose;
 
-  try {
-    conn = await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000,
-    });
-    console.log(`✓ MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
-  } catch (err) {
-    console.warn(`⚠️ Could not connect to external MongoDB at ${MONGODB_URI}. Error details:`, err);
-    console.warn(`Starting fallback In-Memory MongoDB...`);
+  const primaryUri = process.env.MONGODB_URI;
+  const dockerUris = [
+    'mongodb://127.0.0.1:27017/codingcon',
+    'mongodb://mongodb:27017/codingcon',
+    'mongodb://localhost:27017/codingcon',
+  ];
+
+  // 1. Try Primary Cloud Atlas / API key MONGODB_URI if provided
+  if (primaryUri) {
     try {
-      const { MongoMemoryServer } = await import('mongodb-memory-server');
-      const mongoServer = await MongoMemoryServer.create();
-      const uri = mongoServer.getUri();
-      conn = await mongoose.connect(uri);
-      console.log(`✓ Connected to In-Memory MongoDB Server (${uri})`);
-    } catch (fallbackErr) {
-      console.error('❌ Failed to start fallback In-Memory MongoDB:', fallbackErr);
-      throw fallbackErr;
+      console.log(`🔌 Connecting to Primary MongoDB (Cloud / API Key)...`);
+      conn = await mongoose.connect(primaryUri, {
+        serverSelectionTimeoutMS: 5000,
+      });
+      console.log(`✓ Connected to Primary MongoDB: ${conn.connection.host}/${conn.connection.name}`);
+      await ensureSeedData();
+      return conn;
+    } catch (err: any) {
+      console.warn(`⚠️ Primary MongoDB connection failed (${err?.message || err}).`);
+      console.warn(`🔄 Falling back to Docker MongoDB...`);
     }
   }
 
-  // Ensure default demo data exists if empty
-  await ensureSeedData();
+  // 2. Try Local / Docker MongoDB URIs
+  for (const dockerUri of dockerUris) {
+    if (dockerUri === primaryUri) continue;
+    try {
+      conn = await mongoose.connect(dockerUri, {
+        serverSelectionTimeoutMS: 3000,
+      });
+      console.log(`✓ Connected to Docker MongoDB: ${conn.connection.host}/${conn.connection.name} (${dockerUri})`);
+      await ensureSeedData();
+      return conn;
+    } catch {
+      // try next docker URI
+    }
+  }
 
-  return conn;
+  // 3. Safety Fallback: In-Memory MongoDB Server
+  console.warn(`⚠️ Docker MongoDB unavailable. Starting fallback In-Memory MongoDB...`);
+  try {
+    const { MongoMemoryServer } = await import('mongodb-memory-server');
+    const mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    conn = await mongoose.connect(uri);
+    console.log(`✓ Connected to In-Memory MongoDB Server (${uri})`);
+    await ensureSeedData();
+    return conn;
+  } catch (fallbackErr) {
+    console.error('❌ Failed to start fallback In-Memory MongoDB:', fallbackErr);
+    throw fallbackErr;
+  }
 }
 
 async function ensureSeedData() {

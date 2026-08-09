@@ -1,0 +1,34 @@
+services:
+  # ── Render Web Service for CodingCON Express Backend ────────────────────────
+  - type: web
+    name: codingcon-backend
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+
+  # ── Render Native Cron Service (optional keep-alive & contest sync) ──────────
+  - type: cron
+    name: codingcon-backend-cron
+    runtime: node
+    schedule: "*/10 * * * *"
+    buildCommand: echo "Cron ready"
+    startCommand: node -e "const u = (process.env.BACKEND_URL || 'http://localhost:4000') + '/api/cron'; fetch(u, { headers: process.env.CRON_SECRET ? { Authorization: 'Bearer ' + process.env.CRON_SECRET } : {} }).then(r => r.json()).then(console.log).catch(console.error)"
+    envVars:
+      - key: BACKEND_URL
+        sync: false
+      - key: CRON_SECRET
+        sync: false

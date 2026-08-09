@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api', '') ?? 'http://localhost:4000';
+const BACKEND_URL =
+  process.env.BACKEND_URL?.replace(/\/+$/, '') ??
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/api\/?$/, '').replace(/\/+$/, '') ??
+  'http://localhost:4000';
 
 const nextConfig: NextConfig = {
   // ── Turbopack: silence the workspace-root warning ──────────────────────────

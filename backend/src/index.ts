@@ -18,6 +18,7 @@ import submissionsRouter from './routes/submissions';
 import profileRouter     from './routes/profile';
 import rolesRouter       from './routes/roles';
 import runRouter         from './routes/run';
+import cronRouter        from './routes/cron';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use('/api/submission',  submissionLimiter, submissionsRouter);
 app.use('/api/profile',     profileRouter);
 app.use('/api/roles',       rolesRouter);
 app.use('/api/run',         runLimiter, runRouter);
+app.use('/api/cron',        cronRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
