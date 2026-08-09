@@ -187,13 +187,14 @@ function startServer() {
       });
 
       // Start in-memory queue socket event forwarder
-      const { inMemoryQueue } = await import('./queue/inmemory');
-      inMemoryQueue.on('socketEvent', (payload: any) => {
-        const { getIO } = require('./socket/gateway');
-        const io = getIO();
-        if (io) {
-          io.to(payload.room).emit(payload.eventName, payload.data);
-        }
+      import('./queue/inmemory').then(({ inMemoryQueue }) => {
+        inMemoryQueue.on('socketEvent', (payload: any) => {
+          const { getIO } = require('./socket/gateway');
+          const io = getIO();
+          if (io) {
+            io.to(payload.room).emit(payload.eventName, payload.data);
+          }
+        });
       });
     })
     .catch((err) => {
