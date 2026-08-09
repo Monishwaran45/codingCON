@@ -185,8 +185,6 @@ if (process.env.CLUSTER_ENABLED !== 'false' && process.env.NODE_ENV === 'product
 
 // Start the judge worker in the same process (for in-memory queue)
 // This processes code submissions asynchronously
-if (process.env.NODE_ENV !== 'production' || process.env.CLUSTER_ENABLED === 'false') {
-  // In development or single-process mode, start worker in the same process
-  import('./worker').catch(err => console.error('Failed to start judge worker:', err));
-}
+// Always start the worker in the main process
+import('./worker').catch(err => console.error('Failed to start judge worker:', err));
 
