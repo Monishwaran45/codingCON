@@ -33,20 +33,83 @@ export interface SubmissionProgressEvent {
 class SocketService {
   private socket: Socket | null = null;
 
+  /** Get the JWT token from the auth store (best-effort) */
+  private getToken(): string | undefined {
+    try {
+      // Dynamic import isn't possible synchronously, so we read from
+      // localStorage directly as a fast-path. The Zustand persist
+      // middleware stores auth state under 'auth-storage'.
+      if (typeof window === 'undefined') return undefined;
+      const raw = localStorage.getItem('auth-storage');
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw);
+      return parsed?.state?.user?.token;
+    } catch {
+      return undefined;
+    }
+  }
+
   public connect(): Socket {
     if (!this.socket) {
+      const token = this.getToken();
+
+      console.log('[Socket] Connecting to', WS_BASE_URL, token ? '(authenticated)' : '(anonymous)');
+
       this.socket = io(WS_BASE_URL, {
         autoConnect: false,
         withCredentials: true,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: 10,
         transports: ['websocket', 'polling'],
         path: '/socket.io/',
+        // Send the JWT so the backend gateway can verify ownership
+        auth: token ? { token } : {},
+      });
+
+      // Debug logging
+      this.socket.on('connect', () => {
+        console.log('[Socket] Connected, id:', this.socket?.id);
+      });
+
+      this.socket.on('connect_error', (err) => {
+        console.error('[Socket] Connection error:', err.message);
+      });
+
+      this.socket.on('disconnect', (reason) => {
+        console.log('[Socket] Disconnected:', reason);
       });
     }
     return this.socket;
+  }
+
+  /**
+   * Ensure the socket is connected. Resolves immediately if already
+   * connected, otherwise waits up to `timeoutMs` for the 'connect' event.
+   */
+  public waitForConnection(timeoutMs = 3000): Promise<Socket> {
+    const socket = this.connect();
+
+    if (socket.connected) return Promise.resolve(socket);
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    return new Promise<Socket>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        // Even if not officially "connected", the socket may still work
+        // via polling — resolve anyway so we don't block submission flow.
+        console.warn('[Socket] Connection timed out after', timeoutMs, 'ms — proceeding anyway');
+        resolve(socket);
+      }, timeoutMs);
+
+      socket.once('connect', () => {
+        clearTimeout(timer);
+        resolve(socket);
+      });
+    });
   }
 
   public subscribeToSubmission(
@@ -57,6 +120,7 @@ class SocketService {
     if (!socket.connected) {
       socket.connect();
     }
+    console.log('[Socket] Subscribing to submission:', submissionId);
     socket.emit('subscribe:submission', submissionId);
     socket.on('submission:progress', onProgress);
     socket.on('submission:done', onProgress);
@@ -91,6 +155,15 @@ class SocketService {
     if (this.socket) {
       this.socket.off('leaderboard:update', onUpdate);
     }
+  }
+
+  /**
+   * Force-reconnect with fresh credentials (e.g. after login).
+   * Tears down the existing socket so the next `connect()` picks up
+   * the new JWT from localStorage.
+   */
+  public reconnectWithAuth() {
+    this.disconnect();
   }
 
   public disconnect() {

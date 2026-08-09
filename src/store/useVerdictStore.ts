@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Verdict, TestCaseResult } from '@/types';
 import { API_BASE_URL } from '@/lib/constants';
+import { socketService, SubmissionProgressEvent } from '@/lib/socket';
 
 interface VerdictState {
   isStreaming: boolean;
@@ -25,6 +26,75 @@ interface VerdictState {
     data: Partial<VerdictState> & { testCaseResult?: TestCaseResult; isStreaming?: boolean },
   ) => void;
   resetVerdict: () => void;
+}
+
+/** Poll GET /api/submissions/:id until it has a final verdict */
+async function pollForResult(
+  submissionId: string,
+  token: string | undefined,
+  onResult: (data: SubmissionProgressEvent) => void,
+  maxAttempts = 15,
+  intervalMs = 2000,
+): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((r) => setTimeout(r, intervalMs));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/submissions/${submissionId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) continue;
+
+      const data = await res.json();
+
+      if (data.verdict && data.verdict !== 'running') {
+        // Build failed test case from testCaseResults if available
+        let failedTestCase = null;
+        if (data.verdict !== 'AC' && data.testCaseResults?.length) {
+          const failed = data.testCaseResults.find((tc: any) => !tc.passed);
+          if (failed) {
+            failedTestCase = {
+              id: failed.id,
+              passed: false,
+              expectedOutput: failed.expectedOutput || '',
+              actualOutput: failed.actualOutput || '',
+              executionTimeMs: failed.executionTimeMs || 0,
+              memoryKb: failed.memoryKb || 0,
+              error: failed.error,
+            };
+          }
+        }
+
+        onResult({
+          submissionId,
+          verdict: data.verdict,
+          passedTestCases: data.passedTestCases ?? 0,
+          totalTestCases: data.totalTestCases ?? 0,
+          executionTimeMs: data.executionTimeMs ?? 0,
+          memoryKb: data.memoryKb ?? 0,
+          isStreaming: false,
+          failedTestCase: failedTestCase ?? undefined,
+        });
+        return;
+      }
+    } catch {
+      // Network error — try again
+    }
+  }
+
+  // If we exhausted attempts, show error state
+  onResult({
+    submissionId,
+    verdict: 'RE',
+    passedTestCases: 0,
+    totalTestCases: 0,
+    isStreaming: false,
+  });
 }
 
 export const useVerdictStore = create<VerdictState>((set, get) => ({
@@ -71,6 +141,33 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
     const effectiveContestId = contestId || useContestStore.getState().contest?.id;
     const token = useAuthStore.getState().user?.token;
 
+    // ──────────────────────────────────────────────────────────────────────
+    // FIX: Connect the socket and prepare the event handler BEFORE posting
+    // the submission. This eliminates the race condition where the judge
+    // finishes before the frontend subscribes to the room.
+    // ──────────────────────────────────────────────────────────────────────
+    let socketReceivedFinal = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const socketHandler = (data: SubmissionProgressEvent) => {
+      socketReceivedFinal = socketReceivedFinal || data.isStreaming === false;
+      get().updateVerdictFromSocket(data);
+
+      // If this is the final event, cancel the polling fallback
+      if (data.isStreaming === false && pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+    };
+
+    // Ensure socket is connected before we POST
+    try {
+      await socketService.waitForConnection(3000);
+    } catch {
+      console.warn('[Verdict] Socket connection failed — will rely on polling fallback');
+    }
+
+    // ── POST the submission ──────────────────────────────────────────────
     const res = await fetch(`${API_BASE_URL}/submissions`, {
       method: 'POST',
       headers: {
@@ -90,7 +187,23 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
 
     const data = (await res.json()) as { id: string; totalTestCases: number };
     set({ submissionId: data.id, totalTestCases: data.totalTestCases });
-    // Real-time progress arrives via Socket.IO → updateVerdictFromSocket
+
+    // NOW subscribe to the socket room with the real submission ID
+    socketService.subscribeToSubmission(data.id, socketHandler);
+
+    // ── Polling fallback ─────────────────────────────────────────────────
+    // If the socket doesn't deliver the final verdict within 5 seconds,
+    // start polling the REST API as a fallback.
+    pollTimer = setTimeout(() => {
+      if (!socketReceivedFinal && get().isStreaming) {
+        console.log('[Verdict] Socket timed out — falling back to REST polling');
+        pollForResult(data.id, token, (result) => {
+          if (!socketReceivedFinal) {
+            get().updateVerdictFromSocket(result);
+          }
+        });
+      }
+    }, 5000);
   },
 
   updateVerdictFromSocket: (data) => {

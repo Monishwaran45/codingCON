@@ -97,6 +97,10 @@ class InMemoryQueue extends EventEmitter {
     let maxTime = 0;
     let maxMem = 0;
     let finalVerdict: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' = 'AC';
+    let failedTc: null | {
+      id: string; passed: false; expectedOutput: string; actualOutput: string;
+      executionTimeMs: number; memoryKb: number; error?: string;
+    } = null;
     const resultsToStore: ISubmissionResult[] = [];
 
     for (let i = 0; i < job.testCases.length; i++) {
@@ -151,6 +155,17 @@ class InMemoryQueue extends EventEmitter {
 
         if (!tcPassed) {
           finalVerdict = verdict;
+          if (!failedTc) {
+            failedTc = {
+              id: tc.id,
+              passed: false,
+              expectedOutput: tc.expectedOutput,
+              actualOutput: result.stdout,
+              executionTimeMs: result.executionTimeMs,
+              memoryKb: result.memoryKb,
+              ...(result.stderr ? { error: result.stderr } : {}),
+            };
+          }
           break;
         }
       } catch (error) {
@@ -181,7 +196,7 @@ class InMemoryQueue extends EventEmitter {
 
     console.log(`[Judge] Finished job: ${job.submissionId} - Verdict: ${finalVerdict}`);
 
-    // Emit final socket event
+    // Emit final socket event (includes failedTestCase for the DiffViewer)
     this.emit('socketEvent', {
       room,
       eventName: 'submission:done',
@@ -192,6 +207,7 @@ class InMemoryQueue extends EventEmitter {
         totalTestCases: job.testCases.length,
         executionTimeMs: maxTime,
         memoryKb: maxMem,
+        failedTestCase: failedTc,
       },
     } as SocketEvent);
 

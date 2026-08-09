@@ -135,6 +135,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 
     res.status(202).json({ id, totalTestCases: targetCases.length });
 
+    // Small delay to give the frontend time to establish the
+    // Socket.IO subscription after receiving the submission ID.
+    await new Promise((r) => setTimeout(r, 100));
+
     // Add to in-memory queue for processing
     await inMemoryQueue.addJob({
       submissionId: id,
