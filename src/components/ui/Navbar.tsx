@@ -106,7 +106,7 @@ export const Navbar: React.FC = () => {
   }
 
   // ── Student / Public Header ───────────────────────────────────────────────
-  const studentLinks = isAuthenticated
+  const studentLinks = (mounted && isAuthenticated)
     ? [
         { href: '/', label: 'Home', exact: true },
         { href: '/problems', label: 'Problems' },

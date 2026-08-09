@@ -16,9 +16,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   fallbackTitle = 'Sign In Required',
   fallbackMessage = 'Please sign in with your student or faculty account to access problems, submit solutions, and participate in coding contests.',
 }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, mounted } = useAuth();
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12">
         <SkeletonLoader count={3} className="h-20 w-full mb-4 rounded-xl" />
