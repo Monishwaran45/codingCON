@@ -106,12 +106,16 @@ export const Navbar: React.FC = () => {
   }
 
   // ── Student / Public Header ───────────────────────────────────────────────
-  const studentLinks = [
-    { href: '/', label: 'Home', exact: true },
-    { href: '/problems', label: 'Problems' },
-    { href: '/contest/c88', label: 'Contest' },
-    { href: '/profile', label: 'Profile' },
-  ];
+  const studentLinks = isAuthenticated
+    ? [
+        { href: '/', label: 'Home', exact: true },
+        { href: '/problems', label: 'Problems' },
+        { href: '/contest/c88', label: 'Contest' },
+        { href: '/profile', label: 'Profile' },
+      ]
+    : [
+        { href: '/', label: 'Home', exact: true },
+      ];
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-x-0 border-t-0 font-inter">
