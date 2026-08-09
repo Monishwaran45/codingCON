@@ -86,10 +86,14 @@ const nextConfig: NextConfig = {
   // ── Redirects for backward compatibility ────────────────────────────────────
   async redirects() {
     return [
-      // Redirect old URLs if needed
       {
-        source: '/admin/:path*',
-        destination: '/dashboard/:path*',
+        source: '/dashboard',
+        destination: '/admin',
+        permanent: false,
+      },
+      {
+        source: '/dashboard/:path*',
+        destination: '/admin/:path*',
         permanent: false,
       },
     ];
