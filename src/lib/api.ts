@@ -1,19 +1,42 @@
-/**
- * API client — all requests go to the real backend.
- * The only fallback is an empty state so the UI degrades gracefully
- * rather than showing fake data.
- */
 import { API_BASE_URL } from './constants';
+import { getAuthToken, setMemoryToken } from './auth-token';
 import { Problem, Contest, LeaderboardEntry, User, Submission } from '@/types';
+
+// In-memory short-lived cache for GET requests (5s TTL)
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+const requestCache = new Map<string, CacheEntry<any>>();
+const inFlightRequests = new Map<string, Promise<any>>();
+
+export function clearApiCache(): void {
+  requestCache.clear();
+  inFlightRequests.clear();
+}
 
 // ── Core fetcher ──────────────────────────────────────────────────────────────
 async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  let token: string | undefined;
-  try {
-    const { useAuthStore } = await import('@/store/useAuthStore');
-    token = useAuthStore.getState().user?.token;
-  } catch {
-    // ignore during SSR or before hydration
+  const isGet = !options.method || options.method === 'GET';
+  const token = getAuthToken();
+  const cacheKey = `${token || 'anon'}:${endpoint}`;
+
+  // Invalidate cache on mutations
+  if (!isGet) {
+    requestCache.clear();
+  }
+
+  // Check cache for GET requests
+  if (isGet) {
+    const cached = requestCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data as T;
+    }
+    // Deduplicate in-flight concurrent requests
+    const pending = inFlightRequests.get(cacheKey);
+    if (pending) {
+      return pending as Promise<T>;
+    }
   }
 
   const headers: Record<string, string> = {
@@ -22,27 +45,43 @@ async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...(options.headers as Record<string, string>),
   };
 
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const message = (body as { error?: string }).error ?? `HTTP ${res.status}`;
-    // If the server says token is bad, wipe the persisted auth state so the
-    // user is taken back to the login screen instead of seeing a blank dashboard.
-    if (res.status === 401) {
-      try {
-        const { useAuthStore } = await import('@/store/useAuthStore');
-        useAuthStore.getState().logout();
-      } catch {
-        // ignore if store isn't available (e.g. during SSR)
+  const fetchPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const message = (body as { error?: string }).error ?? `HTTP ${res.status}`;
+        if (res.status === 401) {
+          setMemoryToken(undefined);
+        }
+        throw new Error(message);
+      }
+
+      const data = (await res.json()) as T;
+
+      // Cache successful GET responses for 4 seconds
+      if (isGet) {
+        requestCache.set(cacheKey, { data, expiry: Date.now() + 4000 });
+      }
+
+      return data;
+    } finally {
+      if (isGet) {
+        inFlightRequests.delete(cacheKey);
       }
     }
-    throw new Error(message);
+  })();
+
+  if (isGet) {
+    inFlightRequests.set(cacheKey, fetchPromise);
   }
-  return res.json() as Promise<T>;
+
+  return fetchPromise;
 }
 
 // ── API surface (mirrors backend routes exactly) ──────────────────────────────

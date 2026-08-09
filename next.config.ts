@@ -31,12 +31,6 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: [
-          // Cache static assets long-term
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-          // Security headers
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
@@ -56,20 +50,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-        ],
-      },
-      {
         source: '/static/:path*',
         headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
           },
         ],
       },

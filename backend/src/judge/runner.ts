@@ -295,6 +295,17 @@ async function runInDocker(
   }
 }
 
+function getJudgeTempBaseDir(): string {
+  try {
+    if (process.platform === 'linux' && fs.existsSync('/dev/shm')) {
+      return '/dev/shm';
+    }
+  } catch {
+    // fallback
+  }
+  return os.tmpdir();
+}
+
 function runNative(
   language: string,
   code: string,
@@ -305,7 +316,7 @@ function runNative(
     const TIMEOUT_MS = getTimeoutMs();
     const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
     const ext = cfg.ext;
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+    const tmpDir = fs.mkdtempSync(path.join(getJudgeTempBaseDir(), 'judge-'));
 
     const cleanupTmp = () => cleanup(tmpDir);
 
@@ -500,7 +511,7 @@ export async function executeTestSuite(
   // Native execution with Single Compilation Sandbox
   const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
   const ext = cfg.ext;
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+  const tmpDir = fs.mkdtempSync(path.join(getJudgeTempBaseDir(), 'judge-'));
 
   try {
     const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);

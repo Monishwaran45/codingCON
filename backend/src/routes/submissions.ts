@@ -17,10 +17,11 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
   try {
     const submissions = await Submission.find({ userId: req.user!.id })
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
 
     const problemIds = submissions.map((s) => s.problemId);
-    const problems = await Problem.find({ _id: { $in: problemIds } }).select('title');
+    const problems = await Problem.find({ _id: { $in: problemIds } }).select('_id title').lean();
     const problemMap = new Map(problems.map((p) => [p._id, p.title]));
 
     res.json(
@@ -36,7 +37,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
         totalTestCases: r.totalTestCases,
         executionTimeMs: r.executionTimeMs,
         memoryKb: r.memoryKb,
-        createdAt: r.createdAt.toISOString(),
+        createdAt: new Date(r.createdAt).toISOString(),
       })),
     );
   } catch (err) {
@@ -48,10 +49,10 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
 // ── GET /api/submissions/:id ──────────────────────────────────────────────────
 router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const sub = await Submission.findOne({ _id: req.params.id, userId: req.user!.id });
+    const sub = await Submission.findOne({ _id: req.params.id, userId: req.user!.id }).lean();
     if (!sub) { res.status(404).json({ error: 'Submission not found' }); return; }
 
-    const problem = await Problem.findById(sub.problemId).select('title');
+    const problem = await Problem.findById(sub.problemId).select('title').lean();
 
     res.json({
       id: sub._id,
@@ -63,7 +64,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
       totalTestCases: sub.totalTestCases,
       executionTimeMs: sub.executionTimeMs,
       memoryKb: sub.memoryKb,
-      createdAt: sub.createdAt.toISOString(),
+      createdAt: new Date(sub.createdAt).toISOString(),
       testCaseResults: (sub.testCaseResults || []).map((r) => ({
         id: r.testCaseId,
         passed: r.passed,

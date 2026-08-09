@@ -8,31 +8,30 @@ import { requireAuth, requirePermission, AuthRequest } from '../middleware/auth'
 
 const router = Router();
 
-// ── helper ────────────────────────────────────────────────────────────────────
-async function hydrateContest(contest: IContest) {
-  const problems = await Problem.find({ _id: { $in: contest.problemIds } });
-  
-  // Map problems in the order specified by contest.problemIds
-  const orderedProblems = (contest.problemIds || [])
-    .map((pid) => problems.find((p) => p._id === pid))
-    .filter((p): p is NonNullable<typeof p> => p !== undefined);
+// Short in-memory cache for active contest (4s TTL)
+let activeContestCache: { data: any; expiry: number } | null = null;
 
-  const announcements = await Announcement.find({ contestId: contest._id }).sort({ timestamp: 1 });
+// ── helper ────────────────────────────────────────────────────────────────────
+function formatContestData(contest: any, problems: any[], announcements: any[]) {
+  const problemMap = new Map(problems.map(p => [p._id, p]));
+  const orderedProblems = (contest.problemIds || [])
+    .map((pid: string) => problemMap.get(pid))
+    .filter(Boolean);
 
   return {
     id:                         contest._id,
     title:                      contest.title,
-    startTime:                  contest.startTime.toISOString(),
-    endTime:                    contest.endTime.toISOString(),
+    startTime:                  new Date(contest.startTime).toISOString(),
+    endTime:                    new Date(contest.endTime).toISOString(),
     durationMinutes:            contest.durationMinutes,
     participantCount:           contest.participantCount,
     maxScore:                   contest.maxScore,
     isLeaderboardFrozen:        contest.isLeaderboardFrozen,
     freezeTimeRemainingMinutes: contest.freezeTimeRemainingMinutes ?? null,
-    problems: orderedProblems.map((p) => {
+    problems: orderedProblems.map((p: any) => {
       const sampleTcs = (p.testCases || [])
-        .filter((t) => t.isSample)
-        .sort((a, b) => a.sortOrder - b.sortOrder);
+        .filter((t: any) => t.isSample)
+        .sort((a: any, b: any) => (a.sortOrder || 0) - (b.sortOrder || 0));
       return {
         id: p._id,
         title: p.title,
@@ -47,7 +46,7 @@ async function hydrateContest(contest: IContest) {
         inputFormat: p.inputFormat,
         outputFormat: p.outputFormat,
         tags: p.tags || [],
-        sampleTestCases: sampleTcs.map((t) => ({
+        sampleTestCases: sampleTcs.map((t: any) => ({
           id: t.id,
           input: t.input,
           expectedOutput: t.expectedOutput,
@@ -55,19 +54,48 @@ async function hydrateContest(contest: IContest) {
         })),
       };
     }),
-    announcements: announcements.map((a) => ({
+    announcements: announcements.map((a: any) => ({
       id: a._id,
       message: a.message,
-      timestamp: a.timestamp.toISOString(),
+      timestamp: new Date(a.timestamp).toISOString(),
     })),
   };
+}
+
+async function hydrateContest(contest: IContest) {
+  const [problems, announcements] = await Promise.all([
+    Problem.find({ _id: { $in: contest.problemIds } }).lean(),
+    Announcement.find({ contestId: contest._id }).sort({ timestamp: 1 }).lean(),
+  ]);
+  return formatContestData(contest, problems, announcements);
 }
 
 // ── GET /api/contest ───────────────────────────────────────────────────────────
 router.get('/', requireAuth, async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const contests = await Contest.find().sort({ createdAt: -1 });
-    const hydrated = await Promise.all(contests.map(hydrateContest));
+    const contests = await Contest.find().sort({ createdAt: -1 }).lean();
+    const allProblemIds = Array.from(new Set(contests.flatMap(c => c.problemIds || [])));
+    const allContestIds = contests.map(c => c._id);
+
+    const [allProblems, allAnnouncements] = await Promise.all([
+      Problem.find({ _id: { $in: allProblemIds } }).lean(),
+      Announcement.find({ contestId: { $in: allContestIds } }).sort({ timestamp: 1 }).lean(),
+    ]);
+
+    const announcementMap = new Map<string, any[]>();
+    allAnnouncements.forEach(a => {
+      let list = announcementMap.get(a.contestId);
+      if (!list) {
+        list = [];
+        announcementMap.set(a.contestId, list);
+      }
+      list.push(a);
+    });
+
+    const hydrated = contests.map(c =>
+      formatContestData(c, allProblems, announcementMap.get(c._id) || [])
+    );
+
     res.json(hydrated);
   } catch (err) {
     console.error('Fetch contests error:', err);
@@ -78,15 +106,22 @@ router.get('/', requireAuth, async (_req: AuthRequest, res: Response): Promise<v
 // ── GET /api/contest/active ───────────────────────────────────────────────────
 router.get('/active', requireAuth, async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const nowMs = Date.now();
+    if (activeContestCache && activeContestCache.expiry > nowMs) {
+      res.json(activeContestCache.data);
+      return;
+    }
+
     const now = new Date();
-    let contest = await Contest.findOne({ startTime: { $lte: now } }).sort({ startTime: -1 });
+    let contest = await Contest.findOne({ startTime: { $lte: now } }).sort({ startTime: -1 }).lean();
 
     if (!contest) {
-      contest = await Contest.findOne().sort({ createdAt: -1 });
+      contest = await Contest.findOne().sort({ createdAt: -1 }).lean();
       if (!contest) { res.status(404).json({ error: 'No active contest' }); return; }
     }
 
-    const hydrated = await hydrateContest(contest);
+    const hydrated = await hydrateContest(contest as any);
+    activeContestCache = { data: hydrated, expiry: nowMs + 4000 };
     res.json(hydrated);
   } catch (err) {
     console.error('Fetch active contest error:', err);

@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { WS_BASE_URL } from './constants';
+import { getAuthToken } from './auth-token';
 import { LeaderboardEntry } from '@/types';
 
 export interface SubmissionProgressEvent {
@@ -33,25 +34,9 @@ export interface SubmissionProgressEvent {
 class SocketService {
   private socket: Socket | null = null;
 
-  /** Get the JWT token from the auth store (best-effort) */
-  private getToken(): string | undefined {
-    try {
-      // Dynamic import isn't possible synchronously, so we read from
-      // localStorage directly as a fast-path. The Zustand persist
-      // middleware stores auth state under 'auth-storage'.
-      if (typeof window === 'undefined') return undefined;
-      const raw = localStorage.getItem('auth-storage');
-      if (!raw) return undefined;
-      const parsed = JSON.parse(raw);
-      return parsed?.state?.user?.token;
-    } catch {
-      return undefined;
-    }
-  }
-
   public connect(): Socket {
     if (!this.socket) {
-      const token = this.getToken();
+      const token = getAuthToken();
 
       console.log('[Socket] Connecting to', WS_BASE_URL, token ? '(authenticated)' : '(anonymous)');
 
