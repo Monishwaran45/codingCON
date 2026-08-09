@@ -74,7 +74,22 @@ async function ensureSeedData() {
   const { Announcement } = await import('./models/Announcement');
 
   const count = await User.countDocuments();
-  if (count > 0) return;
+  if (count > 0) {
+    // Keep default demo contest c88 active if it has expired
+    try {
+      const defaultContest = await Contest.findById('c88');
+      if (defaultContest && defaultContest.endTime < new Date()) {
+        const now = new Date();
+        defaultContest.startTime = new Date(now.getTime() - 15 * 60 * 1000);
+        defaultContest.endTime = new Date(now.getTime() + 105 * 60 * 1000);
+        await defaultContest.save();
+        console.log('✓ Rolled forward c88 assessment window to active live session');
+      }
+    } catch {
+      // non-fatal
+    }
+    return;
+  }
 
   console.log('── Auto-seeding initial database collections …');
 

@@ -95,5 +95,9 @@ export interface Contest {
   problems: Problem[];
   isLeaderboardFrozen?: boolean;
   freezeTimeRemainingMinutes?: number;
+  isEnded?: boolean;
+  isUpcoming?: boolean;
+  isLive?: boolean;
+  status?: 'live' | 'upcoming' | 'ended';
   announcements: { id: string; timestamp: string; message: string }[];
 }

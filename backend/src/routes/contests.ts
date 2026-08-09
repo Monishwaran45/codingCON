@@ -18,16 +18,28 @@ function formatContestData(contest: any, problems: any[], announcements: any[]) 
     .map((pid: string) => problemMap.get(pid))
     .filter(Boolean);
 
+  const now = new Date();
+  const startTime = new Date(contest.startTime);
+  const endTime = new Date(contest.endTime);
+  const isEnded = endTime < now;
+  const isUpcoming = startTime > now;
+  const isLive = !isEnded && !isUpcoming;
+  const status: 'live' | 'upcoming' | 'ended' = isLive ? 'live' : (isUpcoming ? 'upcoming' : 'ended');
+
   return {
     id:                         contest._id,
     title:                      contest.title,
-    startTime:                  new Date(contest.startTime).toISOString(),
-    endTime:                    new Date(contest.endTime).toISOString(),
+    startTime:                  startTime.toISOString(),
+    endTime:                    endTime.toISOString(),
     durationMinutes:            contest.durationMinutes,
     participantCount:           contest.participantCount,
     maxScore:                   contest.maxScore,
     isLeaderboardFrozen:        contest.isLeaderboardFrozen,
     freezeTimeRemainingMinutes: contest.freezeTimeRemainingMinutes ?? null,
+    isEnded,
+    isUpcoming,
+    isLive,
+    status,
     problems: orderedProblems.map((p: any) => {
       const sampleTcs = (p.testCases || [])
         .filter((t: any) => t.isSample)
@@ -113,8 +125,24 @@ router.get('/active', requireAuth, async (_req: AuthRequest, res: Response): Pro
     }
 
     const now = new Date();
-    let contest = await Contest.findOne({ startTime: { $lte: now } }).sort({ startTime: -1 }).lean();
+    // 1. Try to find an actively running live contest
+    let contest = await Contest.findOne({
+      startTime: { $lte: now },
+      endTime: { $gte: now },
+    }).sort({ startTime: -1 }).lean();
 
+    // 2. If no active contest is running, check if demo assessment c88 exists and expired; roll it forward
+    if (!contest) {
+      const c88 = await Contest.findById('c88');
+      if (c88) {
+        c88.startTime = new Date(now.getTime() - 15 * 60 * 1000);
+        c88.endTime = new Date(now.getTime() + 105 * 60 * 1000);
+        await c88.save();
+        contest = c88.toObject ? c88.toObject() : (c88 as any);
+      }
+    }
+
+    // 3. Fallback: find any contest in database
     if (!contest) {
       contest = await Contest.findOne().sort({ createdAt: -1 }).lean();
       if (!contest) { res.status(404).json({ error: 'No active contest' }); return; }
@@ -126,6 +154,32 @@ router.get('/active', requireAuth, async (_req: AuthRequest, res: Response): Pro
   } catch (err) {
     console.error('Fetch active contest error:', err);
     res.status(500).json({ error: 'Failed to fetch active contest' });
+  }
+});
+
+// ── POST /api/contest/:id/extend ──────────────────────────────────────────────
+router.post('/:id/extend', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const contest = await Contest.findById(req.params.id);
+    if (!contest) { res.status(404).json({ error: 'Contest not found' }); return; }
+
+    const now = new Date();
+    // If already expired, start from now - 15m to now + 105m
+    if (contest.endTime < now) {
+      contest.startTime = new Date(now.getTime() - 15 * 60 * 1000);
+      contest.endTime = new Date(now.getTime() + 105 * 60 * 1000);
+    } else {
+      // Extend existing end time by 60 minutes
+      contest.endTime = new Date(contest.endTime.getTime() + 60 * 60 * 1000);
+    }
+
+    await contest.save();
+    activeContestCache = null; // bust cache
+    const hydrated = await hydrateContest(contest);
+    res.json(hydrated);
+  } catch (err) {
+    console.error('Extend contest error:', err);
+    res.status(500).json({ error: 'Failed to extend contest' });
   }
 });
 

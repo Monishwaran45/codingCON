@@ -61,11 +61,23 @@ for (const jdkDir of candidateJdkDirs) {
 }
 
 /**
+ * Prepares source code before compiling / running.
+ * Disables package declarations in Java so files compile cleanly in the sandbox root.
+ */
+export function prepareSourceCode(language: string, content: string): string {
+  if (language === 'java') {
+    return content.replace(/^\s*package\s+[^;]+;/gm, '// package disabled;');
+  }
+  return content;
+}
+
+/**
  * Write source file without BOM.
  * Uses Buffer directly to guarantee no BOM for compilation tools.
  */
-function writeSourceFile(filePath: string, content: string): void {
-  fs.writeFileSync(filePath, Buffer.from(content, 'utf8'));
+function writeSourceFile(filePath: string, content: string, language?: string): void {
+  const prepared = language ? prepareSourceCode(language, content) : content;
+  fs.writeFileSync(filePath, Buffer.from(prepared, 'utf8'));
 }
 
 import { normaliseOutput } from './normalise';
@@ -323,7 +335,7 @@ function runNative(
     try {
       const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);
       const outPath = path.join(tmpDir, `solution${BIN_EXT}`);
-      writeSourceFile(srcPath, code);
+      writeSourceFile(srcPath, code, language);
 
       const doRun = () => {
         const [runCmd, ...runArgs] = cfg.runCmd(srcPath, outPath);
@@ -516,7 +528,7 @@ export async function executeTestSuite(
   try {
     const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);
     const outPath = path.join(tmpDir, `solution${BIN_EXT}`);
-    writeSourceFile(srcPath, code);
+    writeSourceFile(srcPath, code, language);
 
     // 1. Single Compilation Phase
     if (cfg.buildCmd) {

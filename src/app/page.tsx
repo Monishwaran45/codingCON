@@ -196,37 +196,66 @@ export default function StudentDashboardPage() {
             {/* Active Contest Banner */}
             <motion.div variants={itemVariants}>
               <h3 className="text-[0.65rem] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3 px-1">
-                Active Session
+                Assessment Session
               </h3>
-              {contest ? (
-                <div className="relative group overflow-hidden rounded-2xl border border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 p-6 transition-all hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/10">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/20 to-transparent blur-3xl group-hover:scale-110 transition-transform" />
-                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[0.62rem] font-bold px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                          </span>
-                          LIVE
-                        </span>
-                        <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/50 px-2 rounded">{contest.id}</span>
+              {contest ? (() => {
+                const now = new Date();
+                const isEnded = new Date(contest.endTime) < now;
+                const isUpcoming = new Date(contest.startTime) > now;
+                const isLive = !isEnded && !isUpcoming;
+
+                return (
+                  <div className={`relative group overflow-hidden rounded-2xl border p-6 transition-all hover:shadow-xl ${
+                    isLive
+                      ? 'border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 hover:border-blue-500/50 hover:shadow-blue-500/10'
+                      : isUpcoming
+                      ? 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 hover:border-amber-500/50 hover:shadow-amber-500/10'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/30 hover:border-zinc-300 dark:hover:border-zinc-700'
+                  }`}>
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-transparent blur-3xl group-hover:scale-110 transition-transform" />
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      <div>
+                        <div className="flex items-center gap-2 mb-3">
+                          {isLive ? (
+                            <span className="text-[0.62rem] font-bold px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-400 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                              </span>
+                              LIVE
+                            </span>
+                          ) : isUpcoming ? (
+                            <span className="text-[0.62rem] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 text-amber-600 dark:text-amber-400 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                              UPCOMING
+                            </span>
+                          ) : (
+                            <span className="text-[0.62rem] font-bold px-2.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-1.5 shadow-sm">
+                              ENDED
+                            </span>
+                          )}
+                          <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-100/50 dark:bg-blue-900/50 px-2 rounded">{contest.id}</span>
+                        </div>
+                        <h4 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">{contest.title}</h4>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                          {isLive ? (
+                            `${contest.problems.length} challenges · Ends at ${new Date(contest.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                          ) : isUpcoming ? (
+                            `${contest.problems.length} challenges · Starts at ${new Date(contest.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${new Date(contest.startTime).toLocaleDateString([], { day: 'numeric', month: 'short' })})`
+                          ) : (
+                            `${contest.problems.length} challenges · Concluded on ${new Date(contest.endTime).toLocaleDateString([], { day: 'numeric', month: 'short' })}`
+                          )}
+                        </p>
                       </div>
-                      <h4 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">{contest.title}</h4>
-                      <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                        {contest.problems.length} challenges · Ends at {new Date(contest.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                      <Link
+                        href={`/contest/${contest.id}`}
+                        className="rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-6 py-3 text-xs font-bold hover:scale-105 transition-transform shadow-lg whitespace-nowrap text-center"
+                      >
+                        {isLive ? 'Enter Arena' : (isUpcoming ? 'View Session' : 'Enter Arena')}
+                      </Link>
                     </div>
-                    <Link
-                      href={`/contest/${contest.id}`}
-                      className="rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-6 py-3 text-xs font-bold hover:scale-105 transition-transform shadow-lg whitespace-nowrap text-center"
-                    >
-                      Enter Arena
-                    </Link>
                   </div>
-                </div>
-              ) : (
+                );
+              })() : (
                 <div className="glass-panel rounded-2xl p-8 text-center border-dashed">
                   <p className="text-xs text-zinc-500">No active assessments scheduled right now.</p>
                   <Link href="/problems" className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-2 inline-block font-semibold">
