@@ -58,22 +58,17 @@ In the **Environment Variables** section on Vercel, add:
 
 Render free tier instances go to sleep after 15 minutes of inactivity. CodingCON is equipped with automated cron job routes to keep the backend warm and sync contest states.
 
-### Option A: Vercel Cron (Included via `vercel.json`)
-The repository includes `vercel.json` configured with:
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "*/10 * * * *"
-    }
-  ]
-}
+Cron job execution is configured on Render natively via `render.yaml`:
+```yaml
+  - type: cron
+    name: codingcon-backend-cron
+    runtime: node
+    rootDir: backend
+    schedule: "*/10 * * * *"
+    buildCommand: echo "Cron ready"
+    startCommand: node -e "const u = (process.env.BACKEND_URL || 'http://localhost:4000') + '/api/cron'; fetch(u, { headers: process.env.CRON_SECRET ? { Authorization: 'Bearer ' + process.env.CRON_SECRET } : {} }).then(r => r.json()).then(console.error)"
 ```
-Vercel automatically triggers `/api/cron` every 10 minutes. The Next.js handler forwards this ping to `${BACKEND_URL}/api/cron`, keeping Render awake continuously.
-
-### Option B: Render Cron Service (Included via `render.yaml`)
-If deploying via Render Blueprint (`render.yaml`), Render creates a native Cron Service executing every 10 minutes to ping `/api/cron`.
+This triggers every 10 minutes to execute `/api/cron` directly on the Render backend service.
 
 ---
 
