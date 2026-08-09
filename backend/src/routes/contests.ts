@@ -131,25 +131,14 @@ router.get('/active', requireAuth, async (_req: AuthRequest, res: Response): Pro
       endTime: { $gte: now },
     }).sort({ startTime: -1 }).lean();
 
-    // 2. If no active contest is running, check if demo assessment c88 exists and expired; roll it forward
-    if (!contest) {
-      const c88 = await Contest.findById('c88');
-      if (c88) {
-        c88.startTime = new Date(now.getTime() - 15 * 60 * 1000);
-        c88.endTime = new Date(now.getTime() + 105 * 60 * 1000);
-        await c88.save();
-        contest = c88.toObject ? c88.toObject() : (c88 as any);
-      }
-    }
-
-    // 3. Fallback: find any contest in database
+    // 2. Fallback: find any most recent contest in database (returns as concluded without modifying DB)
     if (!contest) {
       contest = await Contest.findOne().sort({ createdAt: -1 }).lean();
       if (!contest) { res.status(404).json({ error: 'No active contest' }); return; }
     }
 
     const hydrated = await hydrateContest(contest as any);
-    activeContestCache = { data: hydrated, expiry: nowMs + 4000 };
+    activeContestCache = { data: hydrated, expiry: nowMs + 2000 };
     res.json(hydrated);
   } catch (err) {
     console.error('Fetch active contest error:', err);
@@ -158,13 +147,13 @@ router.get('/active', requireAuth, async (_req: AuthRequest, res: Response): Pro
 });
 
 // ── POST /api/contest/:id/extend ──────────────────────────────────────────────
-router.post('/:id/extend', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/:id/extend', requireAuth, requirePermission('manage_contests'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const contest = await Contest.findById(req.params.id);
     if (!contest) { res.status(404).json({ error: 'Contest not found' }); return; }
 
     const now = new Date();
-    // If already expired, start from now - 15m to now + 105m
+    // If already expired, start from now - 15m to now + 105m (restarts as live)
     if (contest.endTime < now) {
       contest.startTime = new Date(now.getTime() - 15 * 60 * 1000);
       contest.endTime = new Date(now.getTime() + 105 * 60 * 1000);
@@ -176,6 +165,12 @@ router.post('/:id/extend', requireAuth, async (req: AuthRequest, res: Response):
     await contest.save();
     activeContestCache = null; // bust cache
     const hydrated = await hydrateContest(contest);
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getIO } = require('../socket/gateway') as typeof import('../socket/gateway');
+    getIO()?.to(`contest:${req.params.id}`).emit('contest:updated', hydrated);
+    getIO()?.emit('contest:updated', hydrated);
+
     res.json(hydrated);
   } catch (err) {
     console.error('Extend contest error:', err);

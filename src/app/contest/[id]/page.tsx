@@ -62,6 +62,19 @@ export default function ContestPage() {
       setIsLoading(false);
     }
     loadContest();
+
+    // Subscribe to live contest events (Stop, Extend, End)
+    const handleContestUpdate = (updated: import('@/types').Contest) => {
+      if (updated && updated.id === contestId) {
+        setContest(updated);
+      }
+    };
+    const { socketService } = require('@/lib/socket');
+    socketService.subscribeToContest(contestId, handleContestUpdate);
+
+    return () => {
+      socketService.unsubscribeFromContest(contestId, handleContestUpdate);
+    };
   }, [contestId, user, setContest, setSolvedProblemIds]);
 
   if (isLoading) {

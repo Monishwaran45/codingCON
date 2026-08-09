@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { WS_BASE_URL } from './constants';
 import { getAuthToken } from './auth-token';
-import { LeaderboardEntry } from '@/types';
+import { LeaderboardEntry, Contest } from '@/types';
 
 export interface SubmissionProgressEvent {
   submissionId: string;
@@ -139,6 +139,29 @@ class SocketService {
   ) {
     if (this.socket) {
       this.socket.off('leaderboard:update', onUpdate);
+    }
+  }
+
+  public subscribeToContest(
+    contestId: string,
+    onUpdate: (data: Contest) => void,
+  ) {
+    const socket = this.connect();
+    if (!socket.connected) {
+      socket.connect();
+    }
+    socket.emit('subscribe:contest', contestId);
+    socket.on('contest:updated', onUpdate);
+    socket.on('contest:ended', onUpdate);
+  }
+
+  public unsubscribeFromContest(
+    contestId: string,
+    onUpdate: (data: Contest) => void,
+  ) {
+    if (this.socket) {
+      this.socket.off('contest:updated', onUpdate);
+      this.socket.off('contest:ended', onUpdate);
     }
   }
 
