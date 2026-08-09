@@ -25,9 +25,16 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 if ! command -v javac &> /dev/null; then
-  echo "  → Installing Java JDK..."
-  apt-get update -qq 2>/dev/null || true
-  apt-get install -y --no-install-recommends default-jdk-headless 2>/dev/null || echo "  ⚠️ Java install failed (non-fatal)"
+  echo "  → Downloading portable OpenJDK 21 (Amazon Corretto)..."
+  JDK_DIR="$(pwd)/.jdk"
+  if [ ! -f "$JDK_DIR/bin/javac" ]; then
+    mkdir -p "$JDK_DIR"
+    curl -sSL "https://corretto.aws/downloads/latest/amazon-corretto-21-x64-linux-jdk.tar.gz" -o /tmp/jdk.tar.gz
+    tar -xzf /tmp/jdk.tar.gz -C "$JDK_DIR" --strip-components=1
+    rm -f /tmp/jdk.tar.gz
+  fi
+  export JAVA_HOME="$JDK_DIR"
+  export PATH="$JDK_DIR/bin:$PATH"
 fi
 
 # Clean up apt cache to reduce image size

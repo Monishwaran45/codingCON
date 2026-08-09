@@ -41,6 +41,25 @@ const MAX_OUTPUT_BYTES = 1 * 1024 * 1024; // 1 MB
 
 const PYTHON_BIN = 'python3';
 
+// Auto-detect portable JDK directory if present (e.g., Render deployment)
+const candidateJdkDirs = [
+  path.resolve(process.cwd(), '.jdk'),
+  path.resolve(process.cwd(), 'backend', '.jdk'),
+  path.resolve(__dirname, '..', '..', '..', '.jdk'),
+  path.resolve(__dirname, '..', '..', '.jdk'),
+];
+for (const jdkDir of candidateJdkDirs) {
+  const jdkBin = path.join(jdkDir, 'bin');
+  if (fs.existsSync(path.join(jdkBin, 'javac')) || fs.existsSync(path.join(jdkBin, 'javac.exe'))) {
+    if (!process.env.PATH?.includes(jdkBin)) {
+      process.env.PATH = `${jdkBin}${path.delimiter}${process.env.PATH || ''}`;
+      process.env.JAVA_HOME = jdkDir;
+      console.log(`✓ Configured portable JDK from ${jdkDir}`);
+    }
+    break;
+  }
+}
+
 /**
  * Write source file without BOM.
  * Uses Buffer directly to guarantee no BOM for compilation tools.
