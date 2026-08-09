@@ -3,7 +3,7 @@ services:
   - type: web
     name: codingcon-backend
     runtime: node
-    buildCommand: npm install && npm run build
+    buildCommand: chmod +x scripts/render-build.sh && bash scripts/render-build.sh
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:

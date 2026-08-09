@@ -264,8 +264,16 @@ function runNative(
             cleanupTmp();
             if (err) {
               if ((err as any).code === 'ENOENT') {
-                console.warn(`[Judge] Runtime '${runCmd}' not installed on host — using mock fallback.`);
-                return resolve(mockExecutionResult(code, stdin));
+                console.error(`[Judge] Runtime '${runCmd}' not installed on host.`);
+                return resolve({
+                  stdout: '',
+                  stderr: `Runtime Error: '${runCmd}' is not available on this server. Please contact the administrator.`,
+                  executionTimeMs: 0,
+                  netTimeMs: 0,
+                  memoryKb: 0,
+                  exitCode: 1,
+                  timedOut: false,
+                });
               }
               const isTimeout = err.killed || err.signal === 'SIGTERM';
               return resolve({
@@ -303,8 +311,16 @@ function runNative(
           if (err) {
             if ((err as any).code === 'ENOENT') {
               cleanupTmp();
-              console.warn(`[Judge] Compiler '${cmd}' not installed on host — using mock fallback.`);
-              return resolve(mockExecutionResult(code, stdin));
+              console.error(`[Judge] Compiler '${cmd}' not installed on host.`);
+              return resolve({
+                stdout: '',
+                stderr: `Compilation Error: '${cmd}' compiler is not available on this server. Please contact the administrator.`,
+                executionTimeMs: 0,
+                netTimeMs: 0,
+                memoryKb: 0,
+                exitCode: 1,
+                timedOut: false,
+              });
             }
             cleanupTmp();
             return resolve({
@@ -324,7 +340,15 @@ function runNative(
       }
     } catch (err: any) {
       cleanupTmp();
-      resolve(mockExecutionResult(code, stdin));
+      resolve({
+        stdout: '',
+        stderr: `Internal Judge Error: ${err.message || 'Unknown error'}`,
+        executionTimeMs: 0,
+        netTimeMs: 0,
+        memoryKb: 0,
+        exitCode: 1,
+        timedOut: false,
+      });
     }
   });
 }
