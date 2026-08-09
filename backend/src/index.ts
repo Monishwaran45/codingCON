@@ -185,6 +185,16 @@ function startServer() {
           }
         }).catch(err => console.error('Failed to start socket event consumer:', err));
       });
+
+      // Start in-memory queue socket event forwarder
+      const { inMemoryQueue } = await import('./queue/inmemory');
+      inMemoryQueue.on('socketEvent', (payload: any) => {
+        const { getIO } = require('./socket/gateway');
+        const io = getIO();
+        if (io) {
+          io.to(payload.room).emit(payload.eventName, payload.data);
+        }
+      });
     })
     .catch((err) => {
       console.error('❌ FATAL SERVER STARTUP FAILURE:', err);

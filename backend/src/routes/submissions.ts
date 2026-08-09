@@ -8,7 +8,7 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 import { runCode } from '../judge/runner';
 import { normaliseOutput } from '../judge/normalise';
 import { recalculateLeaderboard } from './leaderboard';
-import { publishJudgeJob } from '../queue/rabbitmq';
+import { inMemoryQueue } from '../queue/inmemory';
 
 const router = Router();
 
@@ -135,8 +135,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
 
     res.status(202).json({ id, totalTestCases: targetCases.length });
 
-    // Publish to Message Queue
-    await publishJudgeJob({
+    // Add to in-memory queue for processing
+    await inMemoryQueue.addJob({
       submissionId: id,
       userId: req.user!.id,
       contestId: effectiveContestId,
