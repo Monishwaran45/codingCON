@@ -146,6 +146,9 @@ class InMemoryQueue extends EventEmitter {
           },
         } as SocketEvent);
 
+        console.log(`[Judge] Test case ${tc.id}: ${tcPassed ? 'PASSED' : 'FAILED'} (${passed}/${job.testCases.length})`);
+        console.log(`[Judge] Emitted socketEvent to room: ${room}`);
+
         if (!tcPassed) {
           finalVerdict = verdict;
           break;
@@ -176,7 +179,7 @@ class InMemoryQueue extends EventEmitter {
       testCaseResults: resultsToStore,
     });
 
-    console.log(`[Worker] Finished job: ${job.submissionId} - Verdict: ${finalVerdict}`);
+    console.log(`[Judge] Finished job: ${job.submissionId} - Verdict: ${finalVerdict}`);
 
     // Emit final socket event
     this.emit('socketEvent', {
@@ -191,6 +194,8 @@ class InMemoryQueue extends EventEmitter {
         memoryKb: maxMem,
       },
     } as SocketEvent);
+
+    console.log(`[Judge] Emitted final socketEvent to room: ${room}`);
   }
 }
 
