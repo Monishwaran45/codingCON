@@ -4,11 +4,14 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 
 import { connectDB } from './db/database';
 import { initSocket } from './socket/gateway';
 import { connectRabbitMQ } from './queue/rabbitmq';
 import { createRateLimiter, auditLogger } from './middleware/security';
+import { initCluster } from './cluster';
+import { performanceConfig, logConfig } from './config/performance';
 
 import authRouter        from './routes/auth';
 import problemsRouter    from './routes/problems';
@@ -20,35 +23,47 @@ import rolesRouter       from './routes/roles';
 import runRouter         from './routes/run';
 import cronRouter        from './routes/cron';
 
-const app = express();
+function createApp() {
+  const app = express();
 
-// Security Headers & Audit Logging
-app.use(helmet({
-  contentSecurityPolicy: false, // Allow inline scripts for dev/Monaco integration
-  crossOriginEmbedderPolicy: false,
-}));
-app.use(auditLogger);
+  // Response compression for better throughput
+  if (performanceConfig.express.compression) {
+    app.use(compression());
+  }
 
-// Strict CORS whitelist resolution
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
-  .split(',')
-  .map(o => o.trim());
+  // Security Headers & Audit Logging
+  app.use(helmet({
+    contentSecurityPolicy: false, // Allow inline scripts for dev/Monaco integration
+    crossOriginEmbedderPolicy: false,
+  }));
+  app.use(auditLogger);
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || origin.endsWith('.vercel.app')) {
-      callback(null, true);
-    } else {
-      callback(null, false);
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-}));
+  // Strict CORS whitelist resolution
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map(o => o.trim());
 
-app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*') || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  }));
+
+  app.use(express.json({ limit: performanceConfig.express.jsonLimit }));
+  app.use(express.urlencoded({ limit: performanceConfig.express.urlencodedLimit }));
+  app.use(cookieParser());
+
+  return app;
+}
+
+const app = createApp();
 
 // Rate limiters
 const authLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 15, message: 'Too many authentication attempts.' });
@@ -126,34 +141,52 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const PORT = Number(process.env.PORT ?? 4000);
 const server = http.createServer(app);
 
-initSocket(server);
-console.log('✓ Socket.IO gateway ready');
+function startServer() {
+  logConfig();
 
-// The API is deliberately kept separate from the Docker socket. The judge
-// worker verifies Docker before it begins consuming untrusted-code jobs.
-connectDB()
-  .then(() => connectRabbitMQ())
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log(`\n🚀 CodingCON Hardened Backend running on http://localhost:${PORT}`);
-      console.log(`   REST  → http://localhost:${PORT}/api`);
-      console.log(`   WS    → ws://localhost:${PORT}`);
-      console.log(`   Judge → Dedicated hardened worker\n`);
-    });
+  initSocket(server);
+  console.log('✓ Socket.IO gateway ready');
 
-    // Start consuming socket events to forward to connected clients
-    import('./queue/rabbitmq').then(({ consumeSocketEvents }) => {
-      consumeSocketEvents((payload) => {
-        const { getIO } = require('./socket/gateway');
-        const io = getIO();
-        if (io) {
-          io.to(payload.room).emit(payload.eventName, payload.data);
-        }
-      }).catch(err => console.error('Failed to start socket event consumer:', err));
+  // The API is deliberately kept separate from the Docker socket. The judge
+  // worker verifies Docker before it begins consuming untrusted-code jobs.
+  connectDB()
+    .then(() => connectRabbitMQ())
+    .then(() => {
+      server.listen(PORT, () => {
+        console.log(`\n🚀 CodingCON Hardened Backend running on http://localhost:${PORT}`);
+        console.log(`   REST  → http://localhost:${PORT}/api`);
+        console.log(`   WS    → ws://localhost:${PORT}`);
+        console.log(`   Judge → Dedicated hardened worker\n`);
+      });
+
+      // Start consuming socket events to forward to connected clients
+      import('./queue/rabbitmq').then(({ consumeSocketEvents }) => {
+        consumeSocketEvents((payload) => {
+          const { getIO } = require('./socket/gateway');
+          const io = getIO();
+          if (io) {
+            io.to(payload.room).emit(payload.eventName, payload.data);
+          }
+        }).catch(err => console.error('Failed to start socket event consumer:', err));
+      });
+    })
+    .catch((err) => {
+      console.error('❌ FATAL SERVER STARTUP FAILURE:', err);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error('❌ FATAL SERVER STARTUP FAILURE:', err);
-    process.exit(1);
-  });
+}
+
+// Initialize clustering or run directly
+if (process.env.CLUSTER_ENABLED !== 'false' && process.env.NODE_ENV === 'production') {
+  initCluster(startServer);
+} else {
+  startServer();
+}
+
+// Start the judge worker in the same process (for in-memory queue)
+// This processes code submissions asynchronously
+if (process.env.NODE_ENV !== 'production' || process.env.CLUSTER_ENABLED === 'false') {
+  // In development or single-process mode, start worker in the same process
+  import('./worker').catch(err => console.error('Failed to start judge worker:', err));
+}
 

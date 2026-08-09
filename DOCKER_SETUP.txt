@@ -1,0 +1,164 @@
+═══════════════════════════════════════════════════════════════════════════════
+                  DOCKER SETUP - REDIS + RABBITMQ + MONGODB
+═══════════════════════════════════════════════════════════════════════════════
+
+Your docker-compose.yml includes:
+✓ MongoDB - Database
+✓ RabbitMQ - Message Queue
+✓ Redis - Cache
+
+All services are PRE-CONFIGURED and ready to use!
+
+═══════════════════════════════════════════════════════════════════════════════
+PREREQUISITES
+═══════════════════════════════════════════════════════════════════════════════
+
+Make sure Docker Desktop is installed:
+https://www.docker.com/products/docker-desktop
+
+Verify:
+  docker --version
+  docker-compose --version
+
+═══════════════════════════════════════════════════════════════════════════════
+START ALL SERVICES (1 COMMAND)
+═══════════════════════════════════════════════════════════════════════════════
+
+Open PowerShell in project root and run:
+
+  docker-compose up -d
+
+That's it! All services start automatically.
+
+═══════════════════════════════════════════════════════════════════════════════
+VERIFY SERVICES ARE RUNNING
+═══════════════════════════════════════════════════════════════════════════════
+
+Check status:
+  docker-compose ps
+
+Should show:
+  codingcon-mongodb    ✓ Up (27017)
+  codingcon-rabbitmq   ✓ Up (5672, 15672)
+  codingcon-redis      ✓ Up (6379)
+
+═══════════════════════════════════════════════════════════════════════════════
+ACCESS SERVICES
+═══════════════════════════════════════════════════════════════════════════════
+
+MongoDB:
+  Connection: mongodb://admin:admin123@localhost:27017/codingcon
+  
+RabbitMQ:
+  AMQP: amqp://guest:guest@localhost:5672/
+  Management UI: http://localhost:15672
+  Username: guest
+  Password: guest
+
+Redis:
+  Connection: redis://:redis123@localhost:6379
+  CLI: docker exec -it codingcon-redis redis-cli
+  Password: redis123
+
+═══════════════════════════════════════════════════════════════════════════════
+YOUR .ENV IS ALREADY CONFIGURED!
+═══════════════════════════════════════════════════════════════════════════════
+
+Your .env now has:
+  MONGODB_URI=mongodb://admin:admin123@localhost:27017/codingcon?authSource=admin
+  RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+  REDIS_URL=redis://:redis123@localhost:6379
+
+Just start Docker Compose and everything works!
+
+═══════════════════════════════════════════════════════════════════════════════
+NEXT: START YOUR BACKEND
+═══════════════════════════════════════════════════════════════════════════════
+
+Terminal 1 - Start Docker services:
+  docker-compose up -d
+
+Terminal 2 - Start backend:
+  cd backend
+  npm run dev
+
+Backend will now use:
+  ✓ MongoDB (database)
+  ✓ RabbitMQ (job queue)
+  ✓ Redis (caching)
+
+═══════════════════════════════════════════════════════════════════════════════
+USEFUL COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
+
+# See all running containers
+docker-compose ps
+
+# View logs
+docker-compose logs -f mongodb
+docker-compose logs -f rabbitmq
+docker-compose logs -f redis
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes (WARNING: deletes data)
+docker-compose down -v
+
+# Restart a service
+docker-compose restart mongodb
+
+# Access Redis CLI
+docker exec -it codingcon-redis redis-cli
+
+# Access MongoDB shell
+docker exec -it codingcon-mongodb mongosh
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Problem: "Port 27017 already in use"
+Solution: Change port in docker-compose.yml
+  mongodb:
+    ports:
+      - "27018:27017"  # Change to 27018
+
+Problem: Docker not installed
+Solution: Download from https://www.docker.com/products/docker-desktop
+
+Problem: Services won't start
+Solution: Check logs
+  docker-compose logs
+
+Problem: Backend can't connect to services
+Solution: Ensure docker-compose is running
+  docker-compose ps
+
+═══════════════════════════════════════════════════════════════════════════════
+ENVIRONMENT COMPARISON
+═══════════════════════════════════════════════════════════════════════════════
+
+LOCAL DEVELOPMENT (Docker):
+✓ Free (Docker is free)
+✓ Full-featured (MongoDB, RabbitMQ, Redis)
+✓ No cloud account needed
+✓ Runs on your machine
+✓ Perfect for testing
+
+PRODUCTION (Cloud Services):
+✓ MongoDB Atlas: $57/month
+✓ CloudAMQP: $10/month (optional)
+✓ Upstash Redis: $10/month (optional)
+✓ Fully managed
+✓ 99.9% uptime SLA
+
+═══════════════════════════════════════════════════════════════════════════════
+
+READY? Start Docker Compose:
+  docker-compose up -d
+
+Then run backend:
+  cd backend && npm run dev
+
+See you in 30 seconds! 🚀

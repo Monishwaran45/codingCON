@@ -5,6 +5,7 @@ interface EditorState {
   language: string;
   code: string;
   lastSavedAt: string | null;
+  codeByLanguage: Record<string, string>; // Store code for each language
   setLanguage: (lang: string) => void;
   setCode: (code: string) => void;
   resetCode: () => void;
@@ -15,24 +16,42 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   language: 'javascript',
   code: LANGUAGE_STARTERS['javascript'],
   lastSavedAt: null,
+  codeByLanguage: {
+    javascript: LANGUAGE_STARTERS['javascript'],
+    cpp: LANGUAGE_STARTERS['cpp'],
+    python: LANGUAGE_STARTERS['python'],
+    java: LANGUAGE_STARTERS['java'],
+  },
   setLanguage: (lang: string) => {
-    const currentLang = get().language;
-    const currentCode = get().code;
-    const oldStarter = LANGUAGE_STARTERS[currentLang];
-    const newStarter = LANGUAGE_STARTERS[lang] || '';
-
-    if (!currentCode || currentCode === oldStarter) {
-      set({ language: lang, code: newStarter });
-    } else {
-      set({ language: lang });
-    }
+    const state = get();
+    // Get saved code for this language, or use template if never edited
+    const savedCode = state.codeByLanguage[lang];
+    set({ 
+      language: lang, 
+      code: savedCode || LANGUAGE_STARTERS[lang] || '',
+    });
   },
   setCode: (code: string) => {
-    set({ code });
+    const currentLang = get().language;
+    // Save code to codeByLanguage for current language
+    set({ 
+      code,
+      codeByLanguage: {
+        ...get().codeByLanguage,
+        [currentLang]: code,
+      },
+    });
   },
   resetCode: () => {
     const lang = get().language;
-    set({ code: LANGUAGE_STARTERS[lang] || '// Write solution here' });
+    const template = LANGUAGE_STARTERS[lang] || '// Write solution here';
+    set({ 
+      code: template,
+      codeByLanguage: {
+        ...get().codeByLanguage,
+        [lang]: template,
+      },
+    });
   },
   autosave: () => {
     set({ lastSavedAt: new Date().toLocaleTimeString() });

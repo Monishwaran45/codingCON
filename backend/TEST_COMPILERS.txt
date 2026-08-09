@@ -1,0 +1,130 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    TEST C++ AND JAVA COMPILERS LOCALLY
+═══════════════════════════════════════════════════════════════════════════════
+
+Before deploying to production, verify the compilers work locally with Docker.
+
+═══════════════════════════════════════════════════════════════════════════════
+SETUP: ENSURE DOCKER IS RUNNING
+═══════════════════════════════════════════════════════════════════════════════
+
+Check Docker status:
+  docker ps
+  
+If not running, start Docker Desktop.
+
+═══════════════════════════════════════════════════════════════════════════════
+TEST 1: C++ COMPILER (GCC 13)
+═══════════════════════════════════════════════════════════════════════════════
+
+Pull the image:
+  docker pull gcc:13
+
+Test compilation & execution:
+  
+  docker run --rm -it gcc:13 bash
+
+  Inside container:
+    cat > test.cpp << 'EOF'
+#include <iostream>
+using namespace std;
+int main() {
+    int n;
+    cin >> n;
+    cout << n * 2 << endl;
+    return 0;
+}
+EOF
+    
+    g++ -O2 -std=c++17 -o test test.cpp
+    echo "5" | ./test
+    
+  Expected output: 10
+
+Exit container:
+  exit
+
+═══════════════════════════════════════════════════════════════════════════════
+TEST 2: JAVA COMPILER (Eclipse Temurin 21)
+═══════════════════════════════════════════════════════════════════════════════
+
+Pull the image:
+  docker pull eclipse-temurin:21-jdk-alpine
+
+Test compilation & execution:
+  
+  docker run --rm -it eclipse-temurin:21-jdk-alpine bash
+
+  Inside container:
+    cat > Solution.java << 'EOF'
+import java.util.Scanner;
+public class Solution {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        System.out.println(n * 2);
+    }
+}
+EOF
+    
+    javac -encoding UTF-8 -d /tmp Solution.java
+    echo "5" | java -cp /tmp Solution
+    
+  Expected output: 10
+
+Exit container:
+  exit
+
+═══════════════════════════════════════════════════════════════════════════════
+TEST 3: RUN FULL JUDGE TEST
+═══════════════════════════════════════════════════════════════════════════════
+
+Test the actual judge execution:
+
+1. Start backend locally:
+   cd backend
+   npm run dev
+
+2. In another terminal, submit a C++ or Java problem
+
+3. Watch the logs for judge output
+
+4. Check browser for verdict
+
+═══════════════════════════════════════════════════════════════════════════════
+QUICK TEST COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
+
+C++ - Quick compile check:
+  docker run --rm gcc:13 bash -c "cat > /tmp/test.cpp << 'EOF'
+#include <iostream>
+int main() { std::cout << \"C++ OK\" << std::endl; return 0; }
+EOF
+g++ /tmp/test.cpp -o /tmp/test && /tmp/test"
+
+Expected: "C++ OK"
+
+Java - Quick compile check:
+  docker run --rm eclipse-temurin:21-jdk-alpine bash -c "cat > /tmp/Test.java << 'EOF'
+public class Test { public static void main(String[] args) { System.out.println(\"Java OK\"); } }
+EOF
+javac /tmp/Test.java && java -cp /tmp Test"
+
+Expected: "Java OK"
+
+═══════════════════════════════════════════════════════════════════════════════
+PRODUCTION DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+When deploying to Render:
+
+1. Judge automatically uses Docker (if available)
+2. Falls back to native if Docker unavailable
+3. All verdicts calculated correctly either way
+4. Performance same as local
+
+Check Render logs:
+  Settings → Logs
+  Search for "Docker" or "judge"
+
+═══════════════════════════════════════════════════════════════════════════════

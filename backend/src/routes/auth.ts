@@ -86,7 +86,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
 // ── POST /api/auth/logout ────────────────────────────────────────────────────
 router.post('/logout', (_req: Request, res: Response): void => {
-  res.clearCookie('token', cookieOpts()).json({ ok: true });
+  res.clearCookie('token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' }).json({ ok: true });
 });
 
 // ── GET /api/auth/me ─────────────────────────────────────────────────────────

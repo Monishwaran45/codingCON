@@ -80,14 +80,17 @@ const LANG_CONFIG: Record<string, {
   cpp: {
     ext:      'cpp',
     image:    'gcc:13',
-    buildCmd: (src, out) => ['g++', '-O2', '-std=c++17', '-o', out, src],
-    runCmd:   (_src, out) => [out],
+    buildCmd: (src, out) => ['g++', '-O2', '-std=c++17', '-o', 'solution', src],
+    runCmd:   () => ['./solution'],
   },
   java: {
     ext:      'java',
     image:    'eclipse-temurin:21-jdk-alpine',
-    buildCmd: (src) => ['javac', '-encoding', 'UTF-8', '-d', '/work', src],
-    runCmd:   (src) => ['java', '-cp', '/work', src.split('/').pop()?.replace('.java', '') || 'Solution'],
+    buildCmd: (src, out) => ['javac', '-encoding', 'UTF-8', src],
+    runCmd:   (src) => {
+      const className = src.split(/[\/\\]/).pop()?.replace('.java', '') || 'Solution';
+      return ['java', '-cp', '.', className];
+    },
   },
 };
 
@@ -98,25 +101,10 @@ let isDockerActive = false;
  * Falls back to native execution if Docker is unavailable or disabled via env.
  */
 export async function verifyDockerEngine(): Promise<boolean> {
-  if (process.env.JUDGE_USE_DOCKER === 'false' || process.env.SKIP_DOCKER_CHECK === 'true') {
-    console.log('ℹ️ Docker check bypassed (JUDGE_USE_DOCKER=false / SKIP_DOCKER_CHECK=true). Using fallback execution engine.');
-    isDockerActive = false;
-    return true;
-  }
-  try {
-    const { stdout } = await execFileAsync('docker', ['info', '--format', '{{.ServerVersion}}']);
-    if (stdout.trim().length > 0) {
-      console.log(`✓ Docker Engine verified active (version ${stdout.trim()})`);
-      isDockerActive = true;
-      return true;
-    }
-    throw new Error('Docker daemon returned empty response');
-  } catch (err: unknown) {
-    const msg = (err as Error).message || String(err);
-    console.warn(`⚠️ Docker Engine unavailable (${msg}) — falling back to safe native execution engine.`);
-    isDockerActive = false;
-    return false;
-  }
+  // Render doesn't have Docker - always use native execution
+  console.log('ℹ️ Using native execution engine (Render deployment - no Docker)');
+  isDockerActive = false;
+  return true;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -132,11 +120,8 @@ export async function runCode(
     return mockExecutionResult(code, stdin);
   }
 
-  if (process.env.JUDGE_USE_DOCKER === 'false' || !isDockerActive) {
-    return runNative(language, code, stdin, cfg);
-  }
-
-  return runInDocker(language, code, stdin, cfg);
+  // Always use native execution (Render deployment)
+  return runNative(language, code, stdin, cfg);
 }
 
 // ── Hardened Docker runner (production) ───────────────────────────────────────

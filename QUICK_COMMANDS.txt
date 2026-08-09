@@ -1,0 +1,200 @@
+═══════════════════════════════════════════════════════════════════════════════
+                        QUICK COMMAND REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+DEVELOPMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Start Backend:
+  cd backend
+  npm run dev
+  → Runs on http://localhost:4000
+
+Start Frontend:
+  npm run dev
+  → Runs on http://localhost:3000
+
+Build Backend:
+  cd backend
+  npm run build
+
+Build Frontend:
+  npm run build
+
+Test Login:
+  Email: student@cit.edu
+  Password: student123
+
+═══════════════════════════════════════════════════════════════════════════════
+PRODUCTION BUILD & TEST
+═══════════════════════════════════════════════════════════════════════════════
+
+Full Production Build:
+  cd backend && npm run build && cd ..
+  npm run build
+
+Start Production Backend:
+  cd backend
+  npm start
+  → Includes judge worker
+
+Start Judge Worker Only:
+  cd backend
+  npm run worker
+
+═══════════════════════════════════════════════════════════════════════════════
+DOCKER COMPILER TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Test C++ Compiler:
+  docker run --rm gcc:13 bash -c "echo '#include <iostream>
+int main() { std::cout << \"C++ OK\" << std::endl; }' > /tmp/t.cpp && g++ -std=c++17 /tmp/t.cpp -o /tmp/t && /tmp/t"
+
+Test Java Compiler:
+  docker run --rm eclipse-temurin:21-jdk-alpine bash -c "echo 'public class T { public static void main(String[] a) { System.out.println(\"Java OK\"); } }' > /tmp/T.java && javac /tmp/T.java && java -cp /tmp T"
+
+Test Python:
+  docker run --rm python:3.11-alpine python3 -c "print('Python OK')"
+
+Test JavaScript:
+  docker run --rm node:20-alpine node -e "console.log('JavaScript OK')"
+
+═══════════════════════════════════════════════════════════════════════════════
+DATABASE
+═══════════════════════════════════════════════════════════════════════════════
+
+Seed Database:
+  cd backend
+  npm run seed
+
+Reset Database:
+  cd backend
+  npm run db:reset
+
+═══════════════════════════════════════════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Test Backend Health:
+  curl http://localhost:4000/api/health
+
+Test API:
+  curl http://localhost:4000/api
+
+Test Login:
+  curl -X POST http://localhost:4000/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"student@cit.edu","password":"student123"}'
+
+═══════════════════════════════════════════════════════════════════════════════
+DEPLOYMENT CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+Before Production:
+  □ npm run build (backend)
+  □ npm run build (frontend)
+  □ npm run dev (test locally)
+  □ Can login
+  □ Can submit code
+
+Deploy Backend:
+  1. Create Render account
+  2. Click "+ New" → "Web Service"
+  3. Select repository
+  4. Set build & start commands
+  5. Add env vars
+  6. Deploy
+
+Deploy Frontend:
+  1. Create Vercel account
+  2. Import repository
+  3. Add NEXT_PUBLIC_API_URL
+  4. Deploy
+
+Connect:
+  1. Get backend URL
+  2. Update Render CORS_ORIGIN
+  3. Test login
+
+═══════════════════════════════════════════════════════════════════════════════
+ENVIRONMENT VARIABLES
+═══════════════════════════════════════════════════════════════════════════════
+
+Development (.env):
+  NODE_ENV=development
+  MONGODB_URI=mongodb+srv://monishlegend1780_db_user:6yBIRY2LLGfa2PLP@...
+  JWT_SECRET=dev_secret_key_...
+  CORS_ORIGIN=http://localhost:3000
+
+Production (Render):
+  NODE_ENV=production
+  PORT=4000
+  MONGODB_URI=<your-mongodb-uri>
+  JWT_SECRET=<generated-strong-key>
+  CORS_ORIGIN=https://your-app.vercel.app
+  CLUSTER_ENABLED=true
+  WORKERS=4
+  DB_POOL_SIZE=50
+  DB_MIN_POOL_SIZE=10
+  MAX_JUDGE_JOBS=4
+  QUEUE_CONCURRENCY=2
+  CRON_SECRET=<generated-strong-key>
+
+Frontend (Vercel):
+  NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
+
+═══════════════════════════════════════════════════════════════════════════════
+GENERATE STRONG KEYS
+═══════════════════════════════════════════════════════════════════════════════
+
+In PowerShell:
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+Run twice to get:
+  - JWT_SECRET (copy first output)
+  - CRON_SECRET (copy second output)
+
+═══════════════════════════════════════════════════════════════════════════════
+MONITORING
+═══════════════════════════════════════════════════════════════════════════════
+
+Check Backend Health:
+  curl https://your-backend.onrender.com/api/health
+
+View Backend Logs:
+  Render dashboard → Service → Logs
+
+View Frontend Errors:
+  Browser DevTools (F12) → Console
+
+Check Performance:
+  Vercel dashboard → Analytics
+  Render dashboard → Metrics
+
+═══════════════════════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Backend won't build:
+  npm run build
+  → Check for TypeScript errors
+
+Frontend won't build:
+  npm run build
+  → Check for missing dependencies
+
+Can't connect to MongoDB:
+  Check MongoDB Atlas IP whitelist
+  Add 0.0.0.0/0 or Render IP range
+
+Frontend can't reach backend:
+  Check CORS_ORIGIN in Render
+  Check NEXT_PUBLIC_API_URL in Vercel
+
+Code submission hangs:
+  Check judge worker is running
+  Check Docker is available
+
+═══════════════════════════════════════════════════════════════════════════════
+
+That's it! You have all the commands you need. 🚀

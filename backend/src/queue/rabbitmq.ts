@@ -1,22 +1,27 @@
 import amqp from 'amqplib';
 import { EventEmitter } from 'events';
 
-const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672/';
+const RABBITMQ_URL = process.env.RABBITMQ_URL;
 const QUEUE_NAME = 'judge_queue';
 
 let connection: any = null;
 let channel: any = null;
 
-// Fallback mechanism
+// Fallback mechanism - In-Memory Queue
 const fallbackEmitter = new EventEmitter();
-let isFallback = false;
+let isFallback = !RABBITMQ_URL; // Use in-memory by default if no RABBITMQ_URL
 
 export async function connectRabbitMQ(retries = 3): Promise<void> {
-  if (channel || isFallback) return;
+  if (channel || isFallback) {
+    if (isFallback && !channel) {
+      console.log('✓ In-Memory Queue ready (no RABBITMQ_URL configured)');
+    }
+    return;
+  }
 
   while (retries > 0) {
     try {
-      connection = await amqp.connect(RABBITMQ_URL);
+      connection = await amqp.connect(RABBITMQ_URL!);
       channel = await connection.createChannel();
       await channel.assertQueue(QUEUE_NAME, {
         durable: true,

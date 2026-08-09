@@ -19,30 +19,30 @@ export async function connectDB(): Promise<typeof mongoose> {
     'mongodb://localhost:27017/codingcon',
   ];
 
-  // 1. Try Primary Cloud Atlas / API key MONGODB_URI if provided
+  // 1. Try Primary MongoDB (Cloud Atlas / API key) FIRST since it's working
   if (primaryUri) {
     try {
-      console.log(`🔌 Connecting to Primary MongoDB (Cloud / API Key)...`);
+      console.log(`🔌 Connecting to MongoDB Atlas...`);
       conn = await mongoose.connect(primaryUri, {
         serverSelectionTimeoutMS: 5000,
       });
-      console.log(`✓ Connected to Primary MongoDB: ${conn.connection.host}/${conn.connection.name}`);
+      console.log(`✓ Connected to MongoDB: ${conn.connection.host}/${conn.connection.name}`);
       await ensureSeedData();
       return conn;
     } catch (err: any) {
-      console.warn(`⚠️ Primary MongoDB connection failed (${err?.message || err}).`);
+      console.warn(`⚠️ MongoDB Atlas connection failed (${err?.message || err}).`);
       console.warn(`🔄 Falling back to Docker MongoDB...`);
     }
   }
 
-  // 2. Try Local / Docker MongoDB URIs
+  // 2. Try Local / Docker MongoDB URIs as fallback
   for (const dockerUri of dockerUris) {
     if (dockerUri === primaryUri) continue;
     try {
       conn = await mongoose.connect(dockerUri, {
         serverSelectionTimeoutMS: 3000,
       });
-      console.log(`✓ Connected to Docker MongoDB: ${conn.connection.host}/${conn.connection.name} (${dockerUri})`);
+      console.log(`✓ Connected to Docker MongoDB: ${conn.connection.host}/${conn.connection.name}`);
       await ensureSeedData();
       return conn;
     } catch {

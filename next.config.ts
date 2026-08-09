@@ -11,9 +11,74 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
 
+  // ── Performance Optimizations ─────────────────────────────────────────────────
+  productionBrowserSourceMaps: false, // Disable source maps in production for smaller bundle
+  compress: true, // Enable gzip compression
+
+  // ── Image Optimization ────────────────────────────────────────────────────────
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+  },
+
+  // ── Headers for Performance & Security ────────────────────────────────────────
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Cache static assets long-term
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          // Security headers
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+      {
+        source: '/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+
   // ── API + WebSocket proxy ──────────────────────────────────────────────────
-  // Rewrites all /api/* and /socket.io/* requests to the Express backend.
-  // This means the browser only ever talks to localhost:3000, so
+  // Rewrites all /api/* requests to the Express backend.
+  // This means the browser only ever talks to Vercel domain, so
   // credentials (httpOnly cookies) work without cross-origin issues.
   async rewrites() {
     return [
@@ -23,6 +88,50 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // ── Redirects for backward compatibility ────────────────────────────────────
+  async redirects() {
+    return [
+      // Redirect old URLs if needed
+      {
+        source: '/admin/:path*',
+        destination: '/dashboard/:path*',
+        permanent: false,
+      },
+    ];
+  },
+
+  // ── Webpack configuration for code splitting ────────────────────────────────
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.optimization.splitChunks.cacheGroups = {
+        ...config.optimization.splitChunks.cacheGroups,
+        // Separate vendor code
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          priority: 10,
+          reuseExistingChunk: true,
+        },
+        // Separate socket.io client
+        socketio: {
+          test: /[\\/]node_modules[\\/](socket\.io-client)[\\/]/,
+          name: 'socket-io',
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+        // Separate monaco editor
+        monaco: {
+          test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
+          name: 'monaco',
+          priority: 20,
+          reuseExistingChunk: true,
+        },
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
+
