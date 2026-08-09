@@ -53,6 +53,9 @@ class InMemoryQueue extends EventEmitter {
    */
   private async processNext(): Promise<void> {
     if (this.activeJobs >= this.concurrency || this.queue.length === 0) {
+      if (this.queue.length > 0) {
+        console.log(`[Queue] Waiting for slot: ${this.activeJobs}/${this.concurrency} active, ${this.queue.length} queued`);
+      }
       return;
     }
 
@@ -65,7 +68,7 @@ class InMemoryQueue extends EventEmitter {
     }
 
     try {
-      console.log(`[Worker] Processing job: ${job.submissionId}`);
+      console.log(`[Worker] Processing job: ${job.submissionId} (${this.activeJobs}/${this.concurrency})`);
       await this.runJudge(job);
     } catch (error) {
       console.error(`[Worker] Error processing job ${job.submissionId}:`, error);
@@ -79,6 +82,7 @@ class InMemoryQueue extends EventEmitter {
       }).catch(err => console.error('Failed to update submission:', err));
     } finally {
       this.activeJobs--;
+      console.log(`[Worker] Job completed, active: ${this.activeJobs}, queued: ${this.queue.length}`);
       // Process next job
       this.processNext();
     }
