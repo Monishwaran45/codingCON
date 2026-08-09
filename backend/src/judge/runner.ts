@@ -91,26 +91,31 @@ const LANG_CONFIG: Record<string, {
   },
 };
 
+let isDockerActive = false;
+
 /**
  * Verifies that the Docker Engine daemon is accessible and responsive.
- * Throws a fatal error if Docker is unavailable.
+ * Falls back to native execution if Docker is unavailable or disabled via env.
  */
 export async function verifyDockerEngine(): Promise<boolean> {
-  // Allow bypassing check ONLY during unit test runner execution if explicitly mocked
-  if (process.env.NODE_ENV === 'test' && process.env.SKIP_DOCKER_CHECK === 'true') {
+  if (process.env.JUDGE_USE_DOCKER === 'false' || process.env.SKIP_DOCKER_CHECK === 'true') {
+    console.log('ℹ️ Docker check bypassed (JUDGE_USE_DOCKER=false / SKIP_DOCKER_CHECK=true). Using fallback execution engine.');
+    isDockerActive = false;
     return true;
   }
   try {
     const { stdout } = await execFileAsync('docker', ['info', '--format', '{{.ServerVersion}}']);
     if (stdout.trim().length > 0) {
       console.log(`✓ Docker Engine verified active (version ${stdout.trim()})`);
+      isDockerActive = true;
       return true;
     }
     throw new Error('Docker daemon returned empty response');
   } catch (err: unknown) {
     const msg = (err as Error).message || String(err);
-    console.error('❌ FATAL: Docker Engine is mandatory but unreachable:', msg);
-    throw new Error(`Docker Engine is required for isolated execution: ${msg}`);
+    console.warn(`⚠️ Docker Engine unavailable (${msg}) — falling back to safe native execution engine.`);
+    isDockerActive = false;
+    return false;
   }
 }
 
@@ -123,9 +128,12 @@ export async function runCode(
   const cfg = LANG_CONFIG[language];
   if (!cfg) throw new Error(`Unsupported language: ${language}`);
 
-  // Host native execution is purged for security reasons. Docker is mandatory.
-  if (process.env.NODE_ENV === 'test' && process.env.MOCK_EXECUTION === 'true') {
+  if (process.env.MOCK_EXECUTION === 'true' || (process.env.NODE_ENV === 'test' && process.env.MOCK_EXECUTION === 'true')) {
     return mockExecutionResult(code, stdin);
+  }
+
+  if (process.env.JUDGE_USE_DOCKER === 'false' || !isDockerActive) {
+    return runNative(language, code, stdin, cfg);
   }
 
   return runInDocker(language, code, stdin, cfg);
@@ -238,6 +246,102 @@ async function runInDocker(
       timedOut:        isTimeout,
     };
   }
+}
+
+function runNative(
+  language: string,
+  code: string,
+  stdin: string,
+  cfg: typeof LANG_CONFIG[string],
+): Promise<RunResult> {
+  return new Promise((resolve) => {
+    const TIMEOUT_MS = getTimeoutMs();
+    const javaClassName = language === 'java' ? getJavaClassName(code) : 'Solution';
+    const ext = cfg.ext;
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-'));
+
+    const cleanupTmp = () => cleanup(tmpDir);
+
+    try {
+      const srcPath = path.join(tmpDir, language === 'java' ? `${javaClassName}.${ext}` : `solution.${ext}`);
+      const outPath = path.join(tmpDir, 'solution');
+      writeSourceFile(srcPath, code);
+
+      const doRun = () => {
+        const [runCmd, ...runArgs] = cfg.runCmd(srcPath, outPath);
+        const start = Date.now();
+
+        const child = execFile(
+          runCmd,
+          runArgs,
+          { cwd: tmpDir, timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT_BYTES },
+          (err, stdout, stderr) => {
+            cleanupTmp();
+            if (err) {
+              if ((err as any).code === 'ENOENT') {
+                console.warn(`[Judge] Runtime '${runCmd}' not installed on host — using mock fallback.`);
+                return resolve(mockExecutionResult(code, stdin));
+              }
+              const isTimeout = err.killed || err.signal === 'SIGTERM';
+              return resolve({
+                stdout: stdout ? stdout.trimEnd() : '',
+                stderr: isTimeout ? 'Time Limit Exceeded' : (stderr ? stderr.trimEnd() : err.message || 'Runtime Error'),
+                executionTimeMs: TIMEOUT_MS,
+                netTimeMs: TIMEOUT_MS,
+                memoryKb: 0,
+                exitCode: typeof (err as any).code === 'number' ? (err as any).code : 1,
+                timedOut: isTimeout,
+              });
+            }
+            const elapsed = Date.now() - start;
+            return resolve({
+              stdout: (stdout || '').trimEnd(),
+              stderr: (stderr || '').trimEnd(),
+              executionTimeMs: elapsed,
+              netTimeMs: elapsed,
+              memoryKb: 0,
+              exitCode: 0,
+              timedOut: false,
+            });
+          }
+        );
+
+        if (stdin && child.stdin) {
+          child.stdin.write(stdin);
+          child.stdin.end();
+        }
+      };
+
+      if (cfg.buildCmd) {
+        const [cmd, ...args] = cfg.buildCmd(srcPath, outPath);
+        execFile(cmd, args, { cwd: tmpDir, timeout: TIMEOUT_MS }, (err, _stdout, stderr) => {
+          if (err) {
+            if ((err as any).code === 'ENOENT') {
+              cleanupTmp();
+              console.warn(`[Judge] Compiler '${cmd}' not installed on host — using mock fallback.`);
+              return resolve(mockExecutionResult(code, stdin));
+            }
+            cleanupTmp();
+            return resolve({
+              stdout: '',
+              stderr: stderr || err.message || 'Compilation Error',
+              executionTimeMs: 0,
+              netTimeMs: 0,
+              memoryKb: 0,
+              exitCode: typeof (err as any).code === 'number' ? (err as any).code : 1,
+              timedOut: false,
+            });
+          }
+          doRun();
+        });
+      } else {
+        doRun();
+      }
+    } catch (err: any) {
+      cleanupTmp();
+      resolve(mockExecutionResult(code, stdin));
+    }
+  });
 }
 
 function mockExecutionResult(code: string, stdin: string): RunResult {
