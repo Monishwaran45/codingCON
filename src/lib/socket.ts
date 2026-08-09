@@ -38,7 +38,12 @@ class SocketService {
       this.socket = io(WS_BASE_URL, {
         autoConnect: false,
         withCredentials: true,
-        transports: ['polling', 'websocket'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+        transports: ['websocket', 'polling'],
+        path: '/socket.io/',
       });
     }
     return this.socket;
