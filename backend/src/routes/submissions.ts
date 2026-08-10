@@ -52,7 +52,8 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     const sub = await Submission.findOne({ _id: req.params.id, userId: req.user!.id }).lean();
     if (!sub) { res.status(404).json({ error: 'Submission not found' }); return; }
 
-    const problem = await Problem.findById(sub.problemId).select('title').lean();
+    const problem = await Problem.findById(sub.problemId).select('title testCases').lean();
+    const testCasesMap = new Map((problem?.testCases || []).map((t) => [t.id, t]));
 
     res.json({
       id: sub._id,
@@ -65,14 +66,18 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
       executionTimeMs: sub.executionTimeMs,
       memoryKb: sub.memoryKb,
       createdAt: new Date(sub.createdAt).toISOString(),
-      testCaseResults: (sub.testCaseResults || []).map((r) => ({
-        id: r.testCaseId,
-        passed: r.passed,
-        actualOutput: r.actualOutput ?? null,
-        executionTimeMs: r.executionTimeMs ?? null,
-        memoryKb: r.memoryKb ?? null,
-        error: r.error ?? null,
-      })),
+      testCaseResults: (sub.testCaseResults || []).map((r) => {
+        const tc = testCasesMap.get(r.testCaseId);
+        return {
+          id: r.testCaseId,
+          passed: r.passed,
+          actualOutput: r.actualOutput ?? '',
+          expectedOutput: tc ? (tc.isSample || !sub.isSubmit ? tc.expectedOutput : '') : '',
+          executionTimeMs: r.executionTimeMs ?? null,
+          memoryKb: r.memoryKb ?? null,
+          error: r.error ?? null,
+        };
+      }),
     });
   } catch (err) {
     console.error('Fetch submission detail error:', err);

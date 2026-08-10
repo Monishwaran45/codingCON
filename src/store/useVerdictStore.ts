@@ -211,7 +211,26 @@ export const useVerdictStore = create<VerdictState>((set, get) => ({
       const updatedResults = data.testCaseResult
         ? [...state.testCaseResults, data.testCaseResult]
         : state.testCaseResults;
-      return { ...state, ...data, testCaseResults: updatedResults };
+
+      let failedTestCase = data.failedTestCase ?? state.failedTestCase;
+      if (!failedTestCase && data.testCaseResult && !data.testCaseResult.passed) {
+        failedTestCase = {
+          id: data.testCaseResult.id,
+          passed: false,
+          expectedOutput: data.testCaseResult.expectedOutput || '',
+          actualOutput: data.testCaseResult.actualOutput || '',
+          executionTimeMs: data.testCaseResult.executionTimeMs || 0,
+          memoryKb: data.testCaseResult.memoryKb || 0,
+          error: data.testCaseResult.error,
+        };
+      }
+
+      return {
+        ...state,
+        ...data,
+        failedTestCase,
+        testCaseResults: updatedResults,
+      };
     });
 
     // When the final verdict is AC (isStreaming=false means it's the done event),

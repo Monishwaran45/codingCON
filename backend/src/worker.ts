@@ -50,9 +50,8 @@ async function runJudge(job: JudgeJob): Promise<void> {
       testCaseResult: {
         id: tcOutput.id,
         passed: tcOutput.passed,
-        executionTimeMs: tcOutput.executionTimeMs,
-        memoryKb: tcOutput.memoryKb,
-        ...(tcOutput.isSample ? { expectedOutput: tcOutput.expectedOutput, actualOutput: tcOutput.actualOutput } : {}),
+        actualOutput: tcOutput.actualOutput,
+        ...(tcOutput.isSample || !job.isSubmit ? { expectedOutput: tcOutput.expectedOutput } : {}),
         ...(tcOutput.error ? { error: tcOutput.error } : {}),
       },
     });
